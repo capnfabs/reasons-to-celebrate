@@ -1,6 +1,6 @@
-import van from "vanjs-core"
+import van, { State } from "vanjs-core"
 
-const { b, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
+const { b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
 
 const MILLIS_TO_DAYS = 1 / (1000 * 60 * 60 * 24);
 
@@ -97,9 +97,73 @@ const MiniApp = () => {
           " days ago today!",
         ),
         p("Maybe you'd like to celebrate these future milestones:"),
-        Table({ head: ["Occasion", "Date"], data: allDates.val.map(([day, date]) => [day.toLocaleString() + " days old", date.toLocaleDateString()]).slice(0,10) })
+        Table({ head: ["Occasion", "Date"], data: allDates.val.map(([day, date]) => [day.toLocaleString() + " days old", date.toLocaleDateString()]).slice(0, 10) })
       ) : "",
   );
 }
 
+declare global {
+  interface Window {
+    tokenClient: any;
+  }
+}
+
+async function listConnectionNames() {
+  let response;
+  try {
+    // Fetch first 10 files
+    response = await gapi.client.people.people.connections.list({
+      'resourceName': 'people/me',
+      'pageSize': 10,
+      'personFields': 'names,emailAddresses',
+    });
+  } catch (err) {
+    //document.getElementById('content').innerText = err.message;
+    return;
+  }
+  const connections = response.result.connections;
+  if (!connections || connections.length == 0) {
+    //document.getElementById('content').innerText = 'No connections found.';
+    return;
+  }
+  // Flatten to string to display
+  const output = connections.reduce(
+    (str, person) => {
+      if (!person.names || person.names.length === 0) {
+        return `${str}Missing display name\n`;
+      }
+      return `${str}${person.names[0].displayName}\n`;
+    },
+    'Connections:\n');
+  console.log(output);
+}
+
+function handleAuthClick() {
+
+  window.tokenClient.callback = async (resp) => {
+    if (resp.error !== undefined) {
+      throw (resp);
+    }
+    await listConnectionNames();
+  };
+
+  if (gapi.client.getToken() === null) {
+    // Prompt the user to select a Google Account and ask for consent to share their data
+    // when establishing a new session.
+    window.tokenClient.requestAccessToken({ prompt: 'consent' });
+  } else {
+    // Skip display of account chooser and consent dialog for an existing session.
+    window.tokenClient.requestAccessToken({ prompt: '' });
+  }
+}
+
+const LargerApp = () => {
+  const googleLoaded = van.state(false);
+  return div(
+    h2("How about your friends?"),
+    button({ onclick: () => handleAuthClick() }, "auth Google!"),
+  );
+};
+
 van.add(document.body, MiniApp());
+van.add(document.body, LargerApp());

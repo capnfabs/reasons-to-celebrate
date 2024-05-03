@@ -13,11 +13,11 @@
     "vite": "^5.2.0"
   },
   "dependencies": {
+    "@types/gapi": "^0.0.47",
     "vanjs-core": "^1.5.0"
   },
   "imports": {
     "#vanjs-core": {
-      "types": "./src/*.client.ts",
       "browser": "./src/*.client.ts",
       "node": "./src/*.server.ts"
     }
