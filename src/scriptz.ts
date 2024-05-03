@@ -1,4 +1,4 @@
-import van from "./van-1.5.0.min.js"
+import van from "vanjs-core"
 
 const { a, b, div, h1, h2, table, thead, tbody, input, tr, th, td, li, p, ul } = van.tags;
 
