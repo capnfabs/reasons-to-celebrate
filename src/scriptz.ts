@@ -1,4 +1,4 @@
-import van, { State } from "vanjs-core"
+import van from "vanjs-core"
 
 const { b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
 
@@ -102,17 +102,13 @@ const MiniApp = () => {
   );
 }
 
-declare global {
-  interface Window {
-    tokenClient: any;
-  }
-}
-
 async function listConnectionNames() {
+  const client = await window.getAuthedGoogleClient();
+
   let response;
   try {
     // Fetch first 10 files
-    response = await gapi.client.people.people.connections.list({
+    response = await client.people.people.connections.list({
       'resourceName': 'people/me',
       'pageSize': 10,
       'personFields': 'names,emailAddresses',
@@ -128,7 +124,7 @@ async function listConnectionNames() {
   }
   // Flatten to string to display
   const output = connections.reduce(
-    (str, person) => {
+    (str: string, person: any) => {
       if (!person.names || person.names.length === 0) {
         return `${str}Missing display name\n`;
       }
@@ -138,30 +134,11 @@ async function listConnectionNames() {
   console.log(output);
 }
 
-function handleAuthClick() {
-
-  window.tokenClient.callback = async (resp) => {
-    if (resp.error !== undefined) {
-      throw (resp);
-    }
-    await listConnectionNames();
-  };
-
-  if (gapi.client.getToken() === null) {
-    // Prompt the user to select a Google Account and ask for consent to share their data
-    // when establishing a new session.
-    window.tokenClient.requestAccessToken({ prompt: 'consent' });
-  } else {
-    // Skip display of account chooser and consent dialog for an existing session.
-    window.tokenClient.requestAccessToken({ prompt: '' });
-  }
-}
-
 const LargerApp = () => {
   const googleLoaded = van.state(false);
   return div(
     h2("How about your friends?"),
-    button({ onclick: () => handleAuthClick() }, "auth Google!"),
+    button({ onclick: () => listConnectionNames() }, "auth Google!"),
   );
 };
 

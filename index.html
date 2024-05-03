@@ -3,72 +3,9 @@
 <body>
   <h1>We all need more reasons to celebrate.</h1>
   <script type="module" src="./src/scriptz.ts"></script>
-  <script lang="javascript">
-    const CLIENT_ID = "587480390208-mlck7cejl7sgmnnckacml59gfbusanql.apps.googleusercontent.com";
-    const API_KEY = "AIzaSyA_3qfPUe-0FmaBRRpzCHQHjn1qtDxrxWQ";
-
-      // Discovery doc URL for APIs used by the quickstart
-      const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/people/v1/rest';
-
-      // Authorization scopes required by the API; multiple scopes can be
-      // included, separated by spaces.
-      const SCOPES = 'https://www.googleapis.com/auth/contacts.readonly';
-
-      let gapiInited = false;
-      let gisInited = false;
-      window.googleAvailable = false;
-
-      /**
-       * Callback after the API client is loaded. Loads the
-       * discovery doc to initialize the API.
-       */
-      async function initializeGapiClient() {
-        await gapi.client.init({
-          apiKey: API_KEY,
-          discoveryDocs: [DISCOVERY_DOC],
-        });
-        gapiInited = true;
-        maybeNotifyGoogleAvailable();
-      }
-
-      /**
-       * Callback after Google Identity Services are loaded.
-       */
-      function gisLoaded() {
-        window.tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: CLIENT_ID,
-          scope: SCOPES,
-          callback: '', // defined later
-        });
-        gisInited = true;
-        maybeNotifyGoogleAvailable();
-      }
-
-      /**
-       * Enables user interaction after all libraries are loaded.
-       */
-      function maybeNotifyGoogleAvailable() {
-        if (gapiInited && gisInited) {
-          window.googleAvailable = true;
-          if (window.googleAvailableCallbacks) {
-            window.googleAvailableCallbacks.each((x) => x());
-          }
-        }
-      }
-
-      /**
-       *  Sign out the user upon button click.
-       */
-      function handleSignout() {
-        const token = gapi.client.getToken();
-        if (token !== null) {
-          google.accounts.oauth2.revoke(token.access_token);
-          gapi.client.setToken('');
-        }
-      }
-  </script>
-  <script async defer src="https://apis.google.com/js/api.js" onload="gapi.load('client', initializeGapiClient)"></script>
-  <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+  <script lang="javascript" src="./src/googleNonsenseWrapper.ts"></script>
+  <script async defer src="https://apis.google.com/js/api.js" onload="googleApiJsLoaded()"></script>
+  <script async defer src="https://accounts.google.com/gsi/client" onload="googleIdentityServicesJsLoaded()"></script>
 </body>
 
 </html>
