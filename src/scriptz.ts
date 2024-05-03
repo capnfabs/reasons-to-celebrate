@@ -1,4 +1,5 @@
 import van from "vanjs-core"
+import { GoogleApiProvider, loadGoogleApis } from "./googleNonsenseWrapper";
 
 const { b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
 
@@ -102,8 +103,9 @@ const MiniApp = () => {
   );
 }
 
-async function listConnectionNames() {
-  const client = await window.getAuthedGoogleClient();
+async function listConnectionNames(provider: Promise<GoogleApiProvider>) {
+  const p = await provider;
+  const client = await p.getAuthenticatedClient();
 
   let response;
   try {
@@ -136,9 +138,15 @@ async function listConnectionNames() {
 
 const LargerApp = () => {
   const googleLoaded = van.state(false);
+  const authedGoogleClient = loadGoogleApis(document).then((a) => {googleLoaded.val = true; return a});
+
   return div(
     h2("How about your friends?"),
-    button({ onclick: () => listConnectionNames() }, "auth Google!"),
+    button({ onclick: () => {
+      console.log('authedGoogleClient', authedGoogleClient);
+      listConnectionNames(authedGoogleClient);
+    }
+  }, "auth Google!"),
   );
 };
 

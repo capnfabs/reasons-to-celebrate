@@ -7,36 +7,20 @@ const SCOPES = 'https://www.googleapis.com/auth/contacts.readonly';
 
 let googleApiClientInitialized: boolean;
 let googleIdentityServicesInitialized: boolean;
-let tokenClient: any;
-
-let attemptingAuth: boolean;
-let alreadyAuthed: boolean;
-
-let authQueue: [(value: any) => void, (value: any) => void][] = [];
-
-let alreadyAvailable: boolean;
-let availableQueue: [() => void, () => void][] = []
-
-async function initializeGapiClient() {
-  await gapi.client.init({
-    apiKey: API_KEY,
-    discoveryDocs: [DISCOVERY_DOC],
-  });
-  googleApiClientInitialized = true;
-  maybeNotifyGoogleAvailable();
-}
+let availableQueue: [(value: GoogleApiProvider) => void, () => void][] = []
 
 /**
-       * Enables user interaction after all libraries are loaded.
-       */
+ * Enables use after all libraries are loaded.
+ */
 function maybeNotifyGoogleAvailable() {
   if (googleApiClientInitialized && googleIdentityServicesInitialized) {
     console.log("Google available!");
-    alreadyAvailable = true;
+    apiProvider = new GoogleApiProvider();
+
     const queue = availableQueue;
     availableQueue = [];
     for (const [resolve,] of queue) {
-      resolve();
+      resolve(apiProvider);
     }
   }
 }
@@ -52,61 +36,111 @@ function handleSignout() {
 }
 
 const googleApiJsLoaded = () => {
-  gapi.load('client', initializeGapiClient);
+  gapi.load('client', async () => {
+      await gapi.client.init({
+        apiKey: API_KEY,
+        discoveryDocs: [DISCOVERY_DOC],
+      });
+      googleApiClientInitialized = true;
+      maybeNotifyGoogleAvailable();
+  });
 };
 
 const googleIdentityServicesJsLoaded = () => {
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: async (resp) => {
-      attemptingAuth = false;
-      if (resp.error) {
-        console.log("rejecting");
-        const movedQueue = authQueue;
-        authQueue = [];
-        for (const [, reject] of movedQueue) {
-          reject(resp.error);
-        }
-      } else {
-        console.log("resolving");
-        const movedQueue = authQueue;
-        authQueue = [];
-        for (const [resolve] of movedQueue) {
-          resolve(gapi.client);
-        }
-      }
-    },
-  });
   googleIdentityServicesInitialized = true;
   maybeNotifyGoogleAvailable();
 };
 
-// types for the Google Clients are garbage
-const getAuthedGoogleClient = (): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    if (alreadyAuthed) {
-      resolve(gapi.client);
+let googleApiScriptElement: HTMLScriptElement | undefined;
+let googleIdentityScriptElement: HTMLScriptElement | undefined;
+
+declare var google: any;
+
+export class GoogleApiProvider {
+  private alreadyAuthed: boolean = false;
+  private authQueue: [(value: typeof gapi.client) => void, (value: any) => void][] = [];
+  private tokenClient: any;
+
+  constructor() {
+    this.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: async (resp: any) => {
+        if (resp.error) {
+          console.log("rejecting");
+          const movedQueue = this.authQueue;
+          this.authQueue = [];
+          for (const [, reject] of movedQueue) {
+            reject(resp.error);
+          }
+        } else {
+          console.log("resolving");
+          const movedQueue = this.authQueue;
+          this.authQueue = [];
+          for (const [resolve] of movedQueue) {
+            resolve(gapi.client);
+          }
+        }
+      },
+    });
+  }
+
+  private attemptAuth() {
+    if (gapi.client.getToken() === null) {
+      // Prompt the user to select a Google Account and ask for consent to share their data
+      // when establishing a new session.
+      this.tokenClient.requestAccessToken({ prompt: 'consent' });
     } else {
-      authQueue.push([resolve, reject]);
-      // no idea if this should be gated or not based on whether we're already attempting
-      attemptAuth();
+      // Skip display of account chooser and consent dialog for an existing session.
+      this.tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }
+
+  public getAuthenticatedClient(): Promise<typeof gapi.client> {
+    return new Promise((resolve, reject) => {
+      if (this.alreadyAuthed) {
+        resolve(gapi.client);
+      } else {
+        this.authQueue.push([resolve, reject]);
+        // no idea if this should be gated or not based on whether we're already attempting
+        this.attemptAuth();
+      }
+    });
+  }
+}
+
+let apiProvider: GoogleApiProvider | undefined;
+
+const loadGoogleApis = (document: Document): Promise<GoogleApiProvider> => {
+  if (!googleApiScriptElement) {
+    googleApiScriptElement = document.createElement('script');
+    googleApiScriptElement.setAttribute('src', 'https://apis.google.com/js/api.js');
+    googleApiScriptElement.async = true;
+    // probably unnecessary
+    googleApiScriptElement.defer = true;
+    googleApiScriptElement.onload = googleApiJsLoaded;
+
+    document.body.appendChild(googleApiScriptElement);
+  }
+
+  if (!googleIdentityScriptElement) {
+    googleIdentityScriptElement = document.createElement('script');
+    googleIdentityScriptElement.setAttribute('src', 'https://accounts.google.com/gsi/client');
+    googleIdentityScriptElement.async = true;
+    // probably unnecessary
+    googleIdentityScriptElement.defer = true;
+    googleIdentityScriptElement.onload = googleIdentityServicesJsLoaded;
+
+    document.body.appendChild(googleIdentityScriptElement);
+  }
+
+  return new Promise((resolve, reject) => {
+    if (apiProvider) {
+      resolve(apiProvider);
+    } else {
+      availableQueue.push([resolve, reject]);
     }
   });
 }
 
-function attemptAuth() {
-  attemptingAuth = true;
-  if (gapi.client.getToken() === null) {
-    // Prompt the user to select a Google Account and ask for consent to share their data
-    // when establishing a new session.
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-  } else {
-    // Skip display of account chooser and consent dialog for an existing session.
-    tokenClient.requestAccessToken({ prompt: '' });
-  }
-}
-
-window.googleApiJsLoaded = googleApiJsLoaded;
-window.googleIdentityServicesJsLoaded = googleIdentityServicesJsLoaded;
-window.getAuthedGoogleClient = getAuthedGoogleClient;
+export {loadGoogleApis};
