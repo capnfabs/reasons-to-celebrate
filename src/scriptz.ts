@@ -10,6 +10,11 @@ const LIST_OF_SIGNIFICANT_DAYCOUNTS = (() => {
   for (var i = 1; i < 44; i++) {
     milestones.push(i * 1000);
   }
+
+  // This code should probably:
+  // choose 3 from the 1000s
+  // add at least one special number from each category if they're possible
+
   milestones.push(
     1234,
     12345,
@@ -46,9 +51,7 @@ const addDays = (date: Date, days: number) => {
   return d;
 }
 
-// returns (int, Date)[]
 const computeDays = (startDate: Date): [number, Date][] => {
-  console.log(startDate);
   if (!startDate) {
     return [];
   }
@@ -71,7 +74,7 @@ const computeDays = (startDate: Date): [number, Date][] => {
 };
 
 const MiniApp = () => {
-  const birthday = van.state<string>();
+  const birthday = van.state<string>(window.localStorage.getItem('birthday') || '');
   const shouldDisplay = van.derive(() => !!birthday.val);
   const daysAgo = van.derive(() => Math.floor((new Date().getTime() - new Date(birthday.val).getTime()) * MILLIS_TO_DAYS));
   const allDates = van.derive(() => computeDays(new Date(birthday.val)));
@@ -83,6 +86,7 @@ const MiniApp = () => {
       value: birthday,
       oninput: e => {
         birthday.val = e.target.value;
+        window.localStorage.setItem('birthday', e.target.value);
       }
     }),
     () => shouldDisplay.val ?
@@ -93,7 +97,7 @@ const MiniApp = () => {
           " days ago today!",
         ),
         p("Maybe you'd like to celebrate these future milestones:"),
-        Table({ head: ["Occasion", "Date"], data: allDates.val.map(([day, date]) => [day.toLocaleString(), date.toLocaleDateString()]) })
+        Table({ head: ["Occasion", "Date"], data: allDates.val.map(([day, date]) => [day.toLocaleString() + " days old", date.toLocaleDateString()]).slice(0,10) })
       ) : "",
   );
 }
