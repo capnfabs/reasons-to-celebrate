@@ -25,16 +25,6 @@ function maybeNotifyGoogleAvailable() {
   }
 }
 
-/** Sign out the user upon button click. */
-// TODO implement properly
-function handleSignout() {
-  const token = gapi.client.getToken();
-  if (token !== null) {
-    google.accounts.oauth2.revoke(token.access_token);
-    gapi.client.setToken('');
-  }
-}
-
 const googleApiJsLoaded = () => {
   gapi.load('client', async () => {
       await gapi.client.init({
@@ -54,18 +44,16 @@ const googleIdentityServicesJsLoaded = () => {
 let googleApiScriptElement: HTMLScriptElement | undefined;
 let googleIdentityScriptElement: HTMLScriptElement | undefined;
 
-declare var google: any;
-
 export class GoogleApiProvider {
   private alreadyAuthed: boolean = false;
-  private authQueue: [(value: typeof gapi.client) => void, (value: any) => void][] = [];
-  private tokenClient: any;
+  private authQueue: [(value: typeof gapi.client) => void, (error: string) => void][] = [];
+  private tokenClient: google.accounts.oauth2.TokenClient;
 
   constructor() {
     this.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
       scope: SCOPES,
-      callback: async (resp: any) => {
+      callback: async (resp: google.accounts.oauth2.TokenResponse) => {
         if (resp.error) {
           console.log("rejecting");
           const movedQueue = this.authQueue;
@@ -107,11 +95,21 @@ export class GoogleApiProvider {
       }
     });
   }
+
+  // Sign out the user
+  public logOut() {
+    const token = gapi.client.getToken();
+    if (token !== null) {
+      // don't care about result
+      google.accounts.oauth2.revoke(token.access_token, () => {});
+      gapi.client.setToken(null);
+    }
+  }
 }
 
 let apiProvider: GoogleApiProvider | undefined;
 
-const loadGoogleApis = (document: Document): Promise<GoogleApiProvider> => {
+export const loadGoogleApis = (document: Document): Promise<GoogleApiProvider> => {
   if (!googleApiScriptElement) {
     googleApiScriptElement = document.createElement('script');
     googleApiScriptElement.setAttribute('src', 'https://apis.google.com/js/api.js');
@@ -142,5 +140,3 @@ const loadGoogleApis = (document: Document): Promise<GoogleApiProvider> => {
     }
   });
 }
-
-export {loadGoogleApis};
