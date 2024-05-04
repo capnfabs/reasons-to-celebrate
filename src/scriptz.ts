@@ -107,46 +107,58 @@ async function listConnectionNames(provider: Promise<GoogleApiProvider>) {
   const p = await provider;
   const client = await p.getAuthenticatedClient();
 
-  let response;
+  let response: gapi.client.Response<gapi.client.people.ListConnectionsResponse>;
   try {
-    // Fetch first 10 files
+    // Fetch first 100 contacts
     response = await client.people.people.connections.list({
       'resourceName': 'people/me',
-      'pageSize': 10,
-      'personFields': 'names,emailAddresses',
+      'pageSize': 100,
+      'personFields': 'names,birthdays',
     });
   } catch (err) {
-    //document.getElementById('content').innerText = err.message;
+    console.log(err);
     return;
   }
+
+  // TODO: use response.result.nextPageToken to fetch in a loop.
   const connections = response.result.connections;
   if (!connections || connections.length == 0) {
-    //document.getElementById('content').innerText = 'No connections found.';
+    console.log('no connections!?');
     return;
   }
   // Flatten to string to display
-  const output = connections.reduce(
-    (str: string, person: any) => {
-      if (!person.names || person.names.length === 0) {
-        return `${str}Missing display name\n`;
-      }
-      return `${str}${person.names[0].displayName}\n`;
-    },
-    'Connections:\n');
-  console.log(output);
+  for (const c of connections) {
+    console.log(c.names && c.names[0].displayName, c.birthdays);
+    // filter out: contacts without birthdays, contacts without names
+    //
+  }
+
+  // const output = connections.reduce(
+  //   (str: string, person: any) => {
+  //     if (!person.names || person.names.length === 0) {
+  //       return `${str}Missing display name\n`;
+  //     }
+  //     return `${str}${person.names[0].displayName}\n`;
+  //   },
+  //   'Connections:\n');
+  // console.log(output);
 }
 
 const LargerApp = () => {
   const googleLoaded = van.state(false);
-  const authedGoogleClient = loadGoogleApis(document).then((a) => {googleLoaded.val = true; return a});
+  const authedGoogleClient = loadGoogleApis(document).then((a) => { googleLoaded.val = true; return a });
 
   return div(
     h2("How about your friends?"),
-    button({ onclick: () => {
-      console.log('authedGoogleClient', authedGoogleClient);
-      listConnectionNames(authedGoogleClient);
-    }
-  }, "auth Google!"),
+    // TODO make this error if we can't load Google
+    button(
+      {
+        onclick: () => {
+          console.log('authedGoogleClient', authedGoogleClient);
+          listConnectionNames(authedGoogleClient);
+        },
+        disabled: () => !googleLoaded.val,
+      }, "Log in with Google"),
   );
 };
 
