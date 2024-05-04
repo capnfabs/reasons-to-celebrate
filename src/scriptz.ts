@@ -108,27 +108,41 @@ async function listConnectionNames(provider: Promise<GoogleApiProvider>) {
   const client = await p.getAuthenticatedClient();
 
   let response: gapi.client.Response<gapi.client.people.ListConnectionsResponse>;
-  try {
-    // Fetch first 100 contacts
-    response = await client.people.people.connections.list({
-      'resourceName': 'people/me',
-      'pageSize': 100,
-      'personFields': 'names,birthdays',
-    });
-  } catch (err) {
-    console.log(err);
-    return;
-  }
+  let nextPageToken: string | undefined;
+  let allContacts = [];
+  do {
+    console.log("fetching page!");
+    try {
+      // Fetch first 100 contacts
+      response = await client.people.people.connections.list({
+        resourceName: 'people/me',
+        pageSize: 100,
+        personFields: 'names,birthdays',
+        pageToken: nextPageToken,
+      });
+    } catch (err) {
+      console.log(err);
+      return;
+    }
+    allContacts.push(...response.result.connections!);
+    nextPageToken = response.result.nextPageToken;
+  } while (nextPageToken);
 
-  // TODO: use response.result.nextPageToken to fetch in a loop.
-  const connections = response.result.connections;
-  if (!connections || connections.length == 0) {
-    console.log('no connections!?');
+  if (allContacts.length == 0) {
+    console.log('no contacts!?');
     return;
   }
   // Flatten to string to display
-  for (const c of connections) {
-    console.log(c.names && c.names[0].displayName, c.birthdays);
+  for (const c of allContacts) {
+    // can't do anything with a contact without names
+    if (!c.names || c.names.length == 0) {
+      continue;
+    }
+    // TODO add handling
+    if (!c.birthdays || c.birthdays.length == 0) {
+      continue;
+    }
+    console.log(c.names[0].displayName, c.birthdays[0].date);
     // filter out: contacts without birthdays, contacts without names
     //
   }
