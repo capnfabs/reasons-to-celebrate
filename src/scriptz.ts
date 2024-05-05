@@ -1,5 +1,7 @@
-import van from "vanjs-core"
-import { GoogleApiProvider, loadGoogleApis } from "./googleNonsenseWrapper";
+import van, { ChildDom } from "vanjs-core"
+import { AuthenticatedGoogleClient, GoogleApiProvider, loadGoogleApis } from "./googleNonsenseWrapper";
+
+type GoogleContact = gapi.client.people.Person;
 
 const { b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
 
@@ -39,7 +41,7 @@ const LIST_OF_SIGNIFICANT_DAYCOUNTS = (() => {
   return milestones;
 })();
 
-const Table = ({ head, data }: { head: (HTMLElement | string)[], data: (HTMLElement | string)[][] }) => table(
+const Table = ({ head, data }: { head: (ChildDom)[], data: ChildDom[][] }) => table(
   head ? thead(tr(head.map(h => th(h)))) : [],
   tbody(data.map(row => tr(
     row.map(col => td(col)),
@@ -103,63 +105,114 @@ const MiniApp = () => {
   );
 }
 
-async function listConnectionNames(provider: Promise<GoogleApiProvider>) {
-  const p = await provider;
-  const client = await p.getAuthenticatedClient();
-
+async function fetchAllContacts(client: AuthenticatedGoogleClient) {
   let response: gapi.client.Response<gapi.client.people.ListConnectionsResponse>;
   let nextPageToken: string | undefined;
   let allContacts = [];
   do {
-    console.log("fetching page!");
-    try {
-      // Fetch first 100 contacts
-      response = await client.people.people.connections.list({
-        resourceName: 'people/me',
-        pageSize: 100,
-        personFields: 'names,birthdays',
-        pageToken: nextPageToken,
-      });
-    } catch (err) {
-      console.log(err);
-      return;
-    }
+    response = await client.people.people.connections.list({
+      resourceName: 'people/me',
+      pageSize: 100,
+      personFields: 'names,birthdays',
+      pageToken: nextPageToken,
+    });
+
     allContacts.push(...response.result.connections!);
     nextPageToken = response.result.nextPageToken;
   } while (nextPageToken);
+  return allContacts;
+}
 
-  if (allContacts.length == 0) {
-    console.log('no contacts!?');
-    return;
+function birthdateValid(contact: GoogleContact): boolean {
+  if (!contact.birthdays || contact.birthdays.length === 0) {
+    return false;
   }
+  const birthday = contact.birthdays[0];
+  if (!birthday.date) {
+    return false;
+  }
+  return !!(birthday.date.day && birthday.date.month && birthday.date.year && birthday.date.year > 1900);
+}
+
+type GroupedContacts = {
+  withoutBirthdays: GoogleContact[],
+  withInvalidBirthYears: GoogleContact[],
+  useable: GoogleContact[],
+};
+
+function groupContacts(contacts: GoogleContact[]): GroupedContacts {
+  const contactsWithoutBirthdays = [];
+  const contactsWithInvalidBirthYears = [];
+  const useableContacts = [];
+
   // Flatten to string to display
-  for (const c of allContacts) {
+  for (const c of contacts) {
     // can't do anything with a contact without names
     if (!c.names || c.names.length == 0) {
       continue;
     }
-    // TODO add handling
+    // Note that this duplicates code in birthdateValid
+    // but it's better diagnostics for the user.
     if (!c.birthdays || c.birthdays.length == 0) {
+      contactsWithoutBirthdays.push(c);
       continue;
     }
-    console.log(c.names[0].displayName, c.birthdays[0].date);
-    // filter out: contacts without birthdays, contacts without names
-    //
+
+    if (!birthdateValid(c)) {
+      contactsWithInvalidBirthYears.push(c);
+      continue;
+    }
+
+    useableContacts.push(c);
   }
 
-  // const output = connections.reduce(
-  //   (str: string, person: any) => {
-  //     if (!person.names || person.names.length === 0) {
-  //       return `${str}Missing display name\n`;
-  //     }
-  //     return `${str}${person.names[0].displayName}\n`;
-  //   },
-  //   'Connections:\n');
-  // console.log(output);
+  return {
+    withoutBirthdays: contactsWithoutBirthdays,
+    withInvalidBirthYears: contactsWithInvalidBirthYears,
+    useable: useableContacts,
+  };
+}
+
+// TODO rename
+async function listConnectionNames(provider: Promise<GoogleApiProvider>): Promise<GroupedContacts> {
+  const p = await provider;
+  const client = await p.getAuthenticatedClient();
+
+  const allContacts = await fetchAllContacts(client);
+
+  if (allContacts.length == 0) {
+    console.log('no contacts!?');
+  }
+
+  const groupedContacts = groupContacts(allContacts);
+  const total = groupedContacts.useable.length + groupedContacts.withInvalidBirthYears.length + groupedContacts.withoutBirthdays.length;
+
+  console.log(`Imported ${total} contacts, of which ${groupedContacts.useable.length} are useable`);
+
+  return groupedContacts;
+}
+
+type Contact = {
+  id: string,
+  displayName: string,
+  birthday: Date
+}
+
+function remapContacts(contacts: GoogleContact[]): Contact[] {
+  // We should've validated this elsewhere but do it here too just to be sure.
+  return contacts.filter((c) => (birthdateValid(c))).map((c) => {
+    const birthday = c.birthdays![0].date!;
+    return {
+      id: c.resourceName!,
+      displayName: c.names![0].displayName!,
+      birthday: new Date(birthday.year!, birthday.month! - 1, birthday.day)
+    }
+  });
 }
 
 const LargerApp = () => {
   const googleLoaded = van.state(false);
+  const contacts = van.state<Contact[]>([]);
   const authedGoogleClient = loadGoogleApis(document).then((a) => { googleLoaded.val = true; return a });
 
   return div(
@@ -167,12 +220,13 @@ const LargerApp = () => {
     // TODO make this error if we can't load Google
     button(
       {
-        onclick: () => {
-          console.log('authedGoogleClient', authedGoogleClient);
-          listConnectionNames(authedGoogleClient);
+        onclick: async () => {
+          const grouped = await listConnectionNames(authedGoogleClient);
+          contacts.val = remapContacts(grouped.useable);
         },
         disabled: () => !googleLoaded.val,
       }, "Log in with Google"),
+      () => Table({head: ["Name", "Birthday"], data: contacts.val.map((c) => [c.displayName, c.birthday.toLocaleDateString()])})
   );
 };
 

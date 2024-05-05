@@ -44,9 +44,11 @@ const googleIdentityServicesJsLoaded = () => {
 let googleApiScriptElement: HTMLScriptElement | undefined;
 let googleIdentityScriptElement: HTMLScriptElement | undefined;
 
+export type AuthenticatedGoogleClient = typeof gapi.client;
+
 export class GoogleApiProvider {
   private alreadyAuthed: boolean = false;
-  private authQueue: [(value: typeof gapi.client) => void, (error: string) => void][] = [];
+  private authQueue: [(value: AuthenticatedGoogleClient) => void, (error: string) => void][] = [];
   private tokenClient: google.accounts.oauth2.TokenClient;
 
   constructor() {
@@ -84,7 +86,7 @@ export class GoogleApiProvider {
     }
   }
 
-  public getAuthenticatedClient(): Promise<typeof gapi.client> {
+  public getAuthenticatedClient(): Promise<AuthenticatedGoogleClient> {
     return new Promise((resolve, reject) => {
       if (this.alreadyAuthed) {
         resolve(gapi.client);
