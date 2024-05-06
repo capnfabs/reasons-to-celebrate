@@ -54,12 +54,19 @@ const addDays = (date: Date, days: number) => {
   return d;
 }
 
-const buildBirthdayNumber = (date: Date, locale: string | undefined): [string, number] => {
+// returns a number that's loosely a representation of the user's birthday.
+// We try to target a 5-digit number because most people reading this will be
+// between 10k-30k days old.
+// This also works with locales, i.e. en-US gets month-first.
+const buildBirthdayNumber = (date: Date, locale?: string): [string, number] => {
   const format = new Intl.DateTimeFormat(locale).formatToParts(date);
+  // to generate the number, filter out slashes, dots etc.
   const numFormat = format.filter((x) => x.type !== "literal");
+
+  // if the first number only has one digit, then zero-pad both the first and second numbers.
   const shouldPadDayAndMonthFields = numFormat.map((x) => x.value)[0].length === 1;
 
-  const magicNum = parseInt(numFormat.map((component, idx) => {
+  const runFormatter = (formatter: typeof format): string => formatter.map((component) => {
     switch (component.type) {
       case "day":
       case "month":
@@ -70,24 +77,13 @@ const buildBirthdayNumber = (date: Date, locale: string | undefined): [string, n
         }
       case "year":
         return component.value.substring(2);
-    }
-  }).join(""), 10);
-
-  const formatted = format.map((component) => {
-    switch (component.type) {
-      case "day":
-      case "month":
-        if (shouldPadDayAndMonthFields && component.value.length === 1) {
-          return "0" + component.value;
-        } else {
-          return component.value;
-        }
-      case "year":
-        return component.value.substring(2);
-      default:
-        return component.value;
     }
   }).join("");
+
+  // we might have a leading zero, so force base-10.
+  const magicNum = parseInt(runFormatter(numFormat), 10);
+  const formatted = runFormatter(format);
+
   return [formatted, magicNum];
 }
 
@@ -110,12 +106,13 @@ const computeDays = (startDate: Date): [number, Date][] => {
     relevantStartIdx = 0;
   }
 
-  // TODO build really weird day, e.g.
-  // for 1989-07-17 -> 17789 (for en-AU), 71789 (for en-US)
-  // where it gets complex is if _both_ the day and month are < 10 and it compresses to a 4-digit number, then add a 0 to the middle number (or to both, to make it look consistent, eg 1990-2-7 -> 070290 (display) = 70290 (calc) OR 020790 (display, US) = 20790 (calc, US))
+  const dayCounts = LIST_OF_SIGNIFICANT_DAYCOUNTS.slice(relevantStartIdx);
 
+  const [, birthdayNum] = buildBirthdayNumber(startDate);
+  dayCounts.push(birthdayNum);
+  dayCounts.sort((a, b) => a - b);
 
-  return LIST_OF_SIGNIFICANT_DAYCOUNTS.slice(relevantStartIdx).map((days) => [days, addDays(startDate, days)]);
+  return dayCounts.map((days) => [days, addDays(startDate, days)]);
 };
 
 const MiniApp = () => {
