@@ -14,7 +14,6 @@ let availableQueue: [(value: GoogleApiProvider) => void, () => void][] = []
  */
 function maybeNotifyGoogleAvailable() {
   if (googleApiClientInitialized && googleIdentityServicesInitialized) {
-    console.log("Google available!");
     apiProvider = new GoogleApiProvider();
 
     const queue = availableQueue;
@@ -59,14 +58,12 @@ export class GoogleApiProvider {
       scope: SCOPES,
       callback: async (resp: google.accounts.oauth2.TokenResponse) => {
         if (resp.error) {
-          console.log("rejecting");
           const movedQueue = this.authQueue;
           this.authQueue = [];
           for (const [, reject] of movedQueue) {
             reject(resp.error);
           }
         } else {
-          console.log("resolving");
           const movedQueue = this.authQueue;
           this.authQueue = [];
           for (const [resolve] of movedQueue) {
