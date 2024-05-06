@@ -53,6 +53,8 @@ export class GoogleApiProvider {
 
   constructor() {
     this.tokenClient = google.accounts.oauth2.initTokenClient({
+      // '' means "only ask permission the first time"
+      prompt: '',
       client_id: CLIENT_ID,
       scope: SCOPES,
       callback: async (resp: google.accounts.oauth2.TokenResponse) => {
@@ -75,17 +77,6 @@ export class GoogleApiProvider {
     });
   }
 
-  private attemptAuth() {
-    if (gapi.client.getToken() === null) {
-      // Prompt the user to select a Google Account and ask for consent to share their data
-      // when establishing a new session.
-      this.tokenClient.requestAccessToken({ prompt: 'consent' });
-    } else {
-      // Skip display of account chooser and consent dialog for an existing session.
-      this.tokenClient.requestAccessToken({ prompt: '' });
-    }
-  }
-
   public getAuthenticatedClient(): Promise<AuthenticatedGoogleClient> {
     return new Promise((resolve, reject) => {
       if (this.alreadyAuthed) {
@@ -93,7 +84,7 @@ export class GoogleApiProvider {
       } else {
         this.authQueue.push([resolve, reject]);
         // no idea if this should be gated or not based on whether we're already attempting
-        this.attemptAuth();
+        this.tokenClient.requestAccessToken();
       }
     });
   }
