@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "devDependencies": {
     "@types/gapi": "^0.0.47",
@@ -14,7 +15,8 @@
     "@types/google.accounts": "^0.0.14",
     "@types/vcf": "^2.0.7",
     "typescript": "^5.2.2",
-    "vite": "^5.2.0"
+    "vite": "^5.2.0",
+    "vitest": "^1.6.0"
   },
   "dependencies": {
     "vanjs-core": "^1.5.0",
