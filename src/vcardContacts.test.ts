@@ -8,9 +8,6 @@ test('handles undefined bday', () => {
   expect(result).toBe(null);
 });
 
-// 1987-09-27T08:30:00-06:00
-// X-APPLE-OMIT-YEAR=1604:1604-05-11
-
 test.each([
   ["19960415", {year: "1996", month: "04", day: "15"}],
   ["1996-04-15", {year: "1996", month: "04", day: "15"}],
