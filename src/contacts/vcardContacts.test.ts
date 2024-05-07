@@ -1,7 +1,8 @@
 import vCard from 'vcf';
-import {CalendarDate, extractBirthday} from './vcardContacts';
+import {extractBirthday} from './vcardContacts';
 
 import { expect, test } from 'vitest'
+import { CalendarDate } from './types';
 
 test('handles undefined bday', () => {
   const [text, result] = extractBirthday(undefined);

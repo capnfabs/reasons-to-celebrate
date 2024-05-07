@@ -1,4 +1,5 @@
 import vCard from "vcf";
+import { CalendarDate, UserSuppliedContact } from "./types";
 
 // returns the text + a parse attempt. The text is for debugging or whatever
 export const extractBirthday = (bday: vCard.Property | vCard.Property[] | undefined): [string?, CalendarDate?] => {
@@ -56,14 +57,6 @@ export const extractBirthday = (bday: vCard.Property | vCard.Property[] | undefi
   }
   // couldn't parse
   return [bdayText, undefined];
-}
-
-export type CalendarDate = {year?: number, month?: number, day?: number}
-
-export type UserSuppliedContact = {
-  name: string;
-  birthdayRawText?: string;
-  birthdayParsed?: CalendarDate;
 }
 
 function assembleNameFromNProp(nPropContent: string): string | undefined {
