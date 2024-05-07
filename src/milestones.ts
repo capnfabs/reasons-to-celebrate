@@ -1,10 +1,15 @@
 export const MILLIS_TO_DAYS = 1 / (1000 * 60 * 60 * 24);
 
+const NUMBER_FORMAT = new Intl.NumberFormat();
+// This is a tuple of [label, number of days] representing a milestone.
+// if label = '' then it will be filled with NUMBER_FORMAT.format(number).
+// otherwise, it'll be transformed to `${label} (${NUMBER_FORMAT.format(number)})`,
+// e.g. π (31,415)
 const LIST_OF_SIGNIFICANT_DAYCOUNTS = (() => {
-  const milestones = [];
+  const milestones: [string, number][] = [];
   // not so many people live to 121 years == ~44k days
   for (var i = 1; i < 45; i++) {
-    milestones.push(i * 1000);
+    milestones.push(['', i*1000]);
   }
 
   // This code should probably:
@@ -12,25 +17,25 @@ const LIST_OF_SIGNIFICANT_DAYCOUNTS = (() => {
   // add at least one special number from each category if they're possible
 
   milestones.push(
-    1234,
-    12345,
-    3141,
-    31415,
-    1111,
-    2222,
-    3333,
-    4444,
-    5555,
-    6666,
-    7777,
-    8888,
-    9999,
-    11111,
-    22222,
-    33333,
-    44444,
+    ['', 1234],
+    ['', 12345],
+    ["π", 3141],
+    ["π", 31415],
+    ['', 1111],
+    ['', 2222],
+    ['', 3333],
+    ['', 4444],
+    ['', 5555],
+    ['', 6666],
+    ['', 7777],
+    ['', 8888],
+    ['', 9999],
+    ['', 11111],
+    ['', 22222],
+    ['', 33333],
+    ['', 44444],
   )
-  milestones.sort((a, b) => a - b);
+  milestones.sort((a, b) => a[1] - b[1]);
   return milestones;
 })();
 
@@ -65,6 +70,8 @@ const buildBirthdayNumber = (date: Date, locale?: string): [string, number] => {
         }
       case "year":
         return component.value.substring(2);
+      case "literal":
+        return component.value;
     }
   }).join("");
 
@@ -75,8 +82,17 @@ const buildBirthdayNumber = (date: Date, locale?: string): [string, number] => {
   return [formatted, magicNum];
 }
 
+function formatLabel(label: string, days: number): string {
+  const num_days = NUMBER_FORMAT.format(days);
+  if (label) {
+    return `${label} (${NUMBER_FORMAT.format(days)})`;
+  } else {
+    return num_days;
+  }
+}
 
-export const computeMilestones = (startDate: Date): [number, Date][] => {
+
+export const computeMilestones = (startDate: Date): [string, Date][] => {
   if (!startDate) {
     return [];
   }
@@ -84,7 +100,7 @@ export const computeMilestones = (startDate: Date): [number, Date][] => {
   const dayCutoff = (new Date().getTime() - startDate.getTime()) * MILLIS_TO_DAYS;
   var relevantStartIdx = 0;
   for (var i = 0; i < LIST_OF_SIGNIFICANT_DAYCOUNTS.length; i++) {
-    if (LIST_OF_SIGNIFICANT_DAYCOUNTS[i] >= dayCutoff) {
+    if (LIST_OF_SIGNIFICANT_DAYCOUNTS[i][1] >= dayCutoff) {
       relevantStartIdx = i;
       break;
     }
@@ -97,9 +113,11 @@ export const computeMilestones = (startDate: Date): [number, Date][] => {
 
   const dayCounts = LIST_OF_SIGNIFICANT_DAYCOUNTS.slice(relevantStartIdx);
 
-  const [, birthdayNum] = buildBirthdayNumber(startDate);
-  dayCounts.push(birthdayNum);
-  dayCounts.sort((a, b) => a - b);
+  const [label, birthdayNum] = buildBirthdayNumber(startDate);
+  dayCounts.push([label, birthdayNum]);
+  dayCounts.sort((a, b) => a[1] - b[1]);
 
-  return dayCounts.map((days) => [days, addDays(startDate, days)]);
+  const mapped: [string, Date][] = dayCounts.map(([label, days]) => [formatLabel(label, days), addDays(startDate, days)]);
+  const thirty_days_ago = addDays(new Date(), -30);
+  return mapped.filter(([,date]) => date > thirty_days_ago);
 };
