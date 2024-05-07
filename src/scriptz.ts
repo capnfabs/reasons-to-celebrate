@@ -1,5 +1,6 @@
 import van, { ChildDom } from "vanjs-core"
 import { AuthenticatedGoogleClient, GoogleApiProvider, loadGoogleApis } from "./googleNonsenseWrapper";
+import vCard from "vcf";
 
 type GoogleContact = gapi.client.people.Person;
 
@@ -212,7 +213,7 @@ function groupContacts(contacts: GoogleContact[]): GroupedContacts {
   };
 }
 
-async function loadAllContacts(provider: Promise<GoogleApiProvider>): Promise<GroupedContacts> {
+async function loadContactsFromGoogle(provider: Promise<GoogleApiProvider>): Promise<GroupedContacts> {
   const p = await provider;
   const client = await p.getAuthenticatedClient();
 
@@ -253,6 +254,94 @@ const ContactData = (contacts: Contact[]) => {
   return Table({head: ["Name", "Birthday"], data: contacts.map((c) => [c.displayName, c.birthday.toLocaleDateString()])});
 }
 
+const extractBirthday = (bday: vCard.Property | vCard.Property[] | undefined): {year?: string, month?: string, day?: string} | null => {
+  // should add some tests for this
+  // Some details about acceptable formats:
+  // - https://github.com/nextcloud/contacts/issues/122
+  // (links to spec from there, the format is different for vcard 3 and vcard 4)
+  // GOODNESS this is complex, these are all technically valid
+  // 19960415
+  // --0415
+  // 19531015T231000Z
+  if (bday === undefined) {
+    return null;
+  }
+
+  // return the first valid
+  if (Array.isArray(bday)) {
+    for (const item of bday) {
+      const result = extractBirthday(item);
+      if (result) {
+        return result;
+      }
+    }
+    return null;
+  }
+
+  //
+  const bdayRegexes = [
+    // no dashes in between
+    // TODO check if the | T thing works
+    /^(?<year>\d{2}|\d{4}|--)(?<month>[0-9]{2}|--)(?<day>[0-9]{2}|--)($|T)/,
+    /^(?<year>\d{4})-(?<month>[0-9]{2})-(?<day>[0-9]{2})($|T)/,
+  ]
+
+  const reformatBdayElement = (element: string, omitIfMatch?: string): string | undefined => {
+    if (element == '--') {
+      return undefined;
+    }
+    if (element == omitIfMatch) {
+      return undefined;
+    }
+    return element;
+  }
+
+  const bdayText = bday.valueOf() as string;
+  // @ts-expect-error the xAppleOmitYear is there if it's in the card
+  const omitYear: string | undefined = bday['xAppleOmitYear'];
+  for (const regex of bdayRegexes) {
+    const match = regex.exec(bdayText);
+    if (match) {
+      return {
+        'year': reformatBdayElement(match.groups!['year'], omitYear),
+        'month': reformatBdayElement(match.groups!['month']),
+        'day': reformatBdayElement(match.groups!['day']),
+      }
+    }
+  }
+  // couldn't parse
+  return null;
+}
+
+const loadContactsFromVcard = async () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  // We can't easily detect when this is dismissed, so we can't model this as a promise
+  input.onchange = async (e) => {
+    const target = e.target as HTMLInputElement;
+    const files = target.files!;
+    if (files.length < 1) {
+      return;
+    }
+    const file = files[0];
+    const fileContent = await file.text();
+    console.log('loaded file content');
+    let vcards = vCard.parse(fileContent);
+    console.log('parsed!');
+    for (const card of vcards) {
+      // full name and birthday
+      // TODO: add name handling logic
+      const name = card.get('fn')?.valueOf() || card.get('n')?.valueOf();
+      if (!name) {
+        continue;
+      }
+      const bday = extractBirthday(card.get('bday'))
+      console.log(name, bday);
+    }
+  };
+  input.click();
+};
+
 const LargerApp = () => {
   const googleLoaded = van.state(false);
   const contacts = van.state<Contact[] | null>(null);
@@ -264,11 +353,17 @@ const LargerApp = () => {
     button(
       {
         onclick: async () => {
-          const grouped = await loadAllContacts(authedGoogleClient);
+          const grouped = await loadContactsFromGoogle(authedGoogleClient);
           contacts.val = remapContacts(grouped.useable);
         },
         disabled: () => !googleLoaded.val,
       }, "Log in with Google"),
+      button(
+        {
+          onclick: async () => {
+            await loadContactsFromVcard();
+          },
+        }, "Import from vcf"),
       () => contacts.val ? ContactData(contacts.val) : '',
   );
 };
