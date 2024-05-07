@@ -1,7 +1,7 @@
 import van, { ChildDom } from "vanjs-core"
 import { AuthenticatedGoogleClient, GoogleApiProvider, loadGoogleApis } from "./googleNonsenseWrapper";
 import vCard from "vcf";
-import { extractBirthday } from "./vcardContacts";
+import { CalendarDate, UserSuppliedContact, extractBirthday, parseVcards } from "./vcardContacts";
 
 type GoogleContact = gapi.client.people.Person;
 
@@ -164,24 +164,17 @@ async function fetchAllContacts(client: AuthenticatedGoogleClient) {
   return allContacts;
 }
 
-function birthdateValid(contact: GoogleContact): boolean {
-  if (!contact.birthdays || contact.birthdays.length === 0) {
-    return false;
-  }
-  const birthday = contact.birthdays[0];
-  if (!birthday.date) {
-    return false;
-  }
-  return !!(birthday.date.day && birthday.date.month && birthday.date.year && birthday.date.year > 1900);
+function birthdateValid(birthday: CalendarDate): boolean {
+  return !!(birthday.day && birthday.month && birthday.year && birthday.year > 1900);
 }
 
 type GroupedContacts = {
-  withoutBirthdays: GoogleContact[],
-  withInvalidBirthYears: GoogleContact[],
-  useable: GoogleContact[],
+  withoutBirthdays: UserSuppliedContact[],
+  withInvalidBirthYears: UserSuppliedContact[],
+  useable: UserSuppliedContact[],
 };
 
-function groupContacts(contacts: GoogleContact[]): GroupedContacts {
+function groupContacts(contacts: UserSuppliedContact[]): GroupedContacts {
   const contactsWithoutBirthdays = [];
   const contactsWithInvalidBirthYears = [];
   const useableContacts = [];
@@ -189,17 +182,17 @@ function groupContacts(contacts: GoogleContact[]): GroupedContacts {
   // Flatten to string to display
   for (const c of contacts) {
     // can't do anything with a contact without names
-    if (!c.names || c.names.length == 0) {
+    if (!c.name) {
       continue;
     }
     // Note that this duplicates code in birthdateValid
     // but it's better diagnostics for the user.
-    if (!c.birthdays || c.birthdays.length == 0) {
+    if (!c.birthdayParsed) {
       contactsWithoutBirthdays.push(c);
       continue;
     }
 
-    if (!birthdateValid(c)) {
+    if (!birthdateValid(c.birthdayParsed)) {
       contactsWithInvalidBirthYears.push(c);
       continue;
     }
@@ -214,22 +207,34 @@ function groupContacts(contacts: GoogleContact[]): GroupedContacts {
   };
 }
 
-async function loadContactsFromGoogle(provider: Promise<GoogleApiProvider>): Promise<GroupedContacts> {
+function filterMap<In,Out>(array: In[], func: (val: In) => Out | undefined): Out[] {
+  const results: Out[] = [];
+  for (const elem of array) {
+    const result = func(elem);
+    if (result !== undefined) {
+      results.push(result);
+    }
+  }
+  return results
+}
+
+async function loadContactsFromGoogle(provider: Promise<GoogleApiProvider>): Promise<UserSuppliedContact[]> {
   const p = await provider;
   const client = await p.getAuthenticatedClient();
 
   const allContacts = await fetchAllContacts(client);
-
-  if (allContacts.length == 0) {
-    console.log('no contacts!?');
-  }
-
-  const groupedContacts = groupContacts(allContacts);
-  const total = groupedContacts.useable.length + groupedContacts.withInvalidBirthYears.length + groupedContacts.withoutBirthdays.length;
-
-  console.log(`Imported ${total} contacts, of which ${groupedContacts.useable.length} are useable`);
-
-  return groupedContacts;
+  const remapped: UserSuppliedContact[] = filterMap(allContacts, (gc) => {
+    if (!gc.names || gc.names.length === 0 || !gc.names[0].displayName) {
+      return undefined;
+    }
+    let birthday = gc.birthdays && gc.birthdays.length > 0 ? gc.birthdays[0] : undefined;
+    return {
+      name: gc.names[0].displayName,
+      birthdayRawText: birthday?.text,
+      birthdayParsed: birthday?.date,
+    }
+  })
+  return remapped;
 }
 
 type Contact = {
@@ -238,55 +243,77 @@ type Contact = {
   birthday: Date
 }
 
-function remapContacts(contacts: GoogleContact[]): Contact[] {
-  // We should've validated this elsewhere but do it here too just to be sure.
-  return contacts.filter((c) => (birthdateValid(c))).map((c) => {
-    const birthday = c.birthdays![0].date!;
-    return {
-      id: c.resourceName!,
-      displayName: c.names![0].displayName!,
-      birthday: new Date(birthday.year!, birthday.month! - 1, birthday.day)
+// function remapContacts(contacts: GoogleContact[]): Contact[] {
+//   // We should've validated this elsewhere but do it here too just to be sure.
+//   return contacts.filter((c) => (birthdateValid(c))).map((c) => {
+//     const birthday = c.birthdays![0].date!;
+//     return {
+//       id: c.resourceName!,
+//       displayName: c.names![0].displayName!,
+//       birthday: new Date(birthday.year!, birthday.month! - 1, birthday.day)
+//     }
+//   });
+// }
+
+function dateWithPlaceholders(date?: CalendarDate): string {
+  if (!date) {
+    return '??';
+  }
+  const formatter = new Intl.DateTimeFormat().formatToParts();
+  return formatter.map((component) => {
+    switch (component.type) {
+      case "day":
+        return date.day?.toString().padStart(2, '0') || '??';
+      case "month":
+        return date.month?.toString().padStart(2, '0') || '??';
+      case "year":
+        return date.year?.toString().padStart(4, '0') || '????';
+      case "literal":
+        return component.value;
     }
-  });
+  }).join("");
 }
 
-const ContactData = (contacts: Contact[]) => {
-  // TODO: this is raw data and should take a different type so that it accommodates incorrect birthdays and can display those
-  return Table({head: ["Name", "Birthday"], data: contacts.map((c) => [c.displayName, c.birthday.toLocaleDateString()])});
+const UserSuppliedContactData = (contacts: UserSuppliedContact[]) => {
+  return Table({head: ["Name", "Birthday", "Parsed"], data: contacts.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)])});
 }
 
-const loadContactsFromVcard = async () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  // We can't easily detect when this is dismissed, so we can't model this as a promise
-  input.onchange = async (e) => {
-    const target = e.target as HTMLInputElement;
-    const files = target.files!;
-    if (files.length < 1) {
-      return;
-    }
-    const file = files[0];
-    const fileContent = await file.text();
-    console.log('loaded file content');
-    let vcards = vCard.parse(fileContent);
-    console.log('parsed!');
-    for (const card of vcards) {
-      // full name and birthday
-      // TODO: add name handling logic
-      const name = card.get('fn')?.valueOf() || card.get('n')?.valueOf();
-      if (!name) {
-        continue;
+function askUserForFile(): Promise<string> {
+  const promise = new Promise((resolve: (val: string) => void, reject: (val:string) => void) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.vcf,.vcard,text/vcard';
+
+    input.onchange = async (e) => {
+      const target = e.target as HTMLInputElement;
+      const files = target.files!;
+      if (files.length < 1) {
+        return;
       }
-      const bday = extractBirthday(card.get('bday'))
-      console.log(name, bday);
+      const file = files[0];
+      resolve(await file.text());
+    };
+
+    input.oncancel = () => {
+      // i have no idea how many l's are in cancelled
+      reject('cancelled');
     }
-  };
-  input.click();
+
+    // let's goo!
+    input.click();
+  });
+  return promise;
+}
+
+async function loadContactsFromVcardFile(): Promise<UserSuppliedContact[]> {
+  const fileContent = await askUserForFile();
+  console.log('loaded file content');
+  return parseVcards(fileContent);
 };
 
 const LargerApp = () => {
   const googleLoaded = van.state(false);
-  const contacts = van.state<Contact[] | null>(null);
+  const rawContacts = van.state<UserSuppliedContact[] | null>(null);
   const authedGoogleClient = loadGoogleApis(document).then((a) => { googleLoaded.val = true; return a });
 
   return div(
@@ -295,20 +322,34 @@ const LargerApp = () => {
     button(
       {
         onclick: async () => {
-          const grouped = await loadContactsFromGoogle(authedGoogleClient);
-          contacts.val = remapContacts(grouped.useable);
+          rawContacts.val = await loadContactsFromGoogle(authedGoogleClient);
         },
         disabled: () => !googleLoaded.val,
       }, "Log in with Google"),
       button(
         {
           onclick: async () => {
-            await loadContactsFromVcard();
+            rawContacts.val = await loadContactsFromVcardFile();
           },
-        }, "Import from vcf"),
-      () => contacts.val ? ContactData(contacts.val) : '',
+        }, "Import from vcf / vcard file"),
+      () => rawContacts.val ? UserSuppliedContactData(rawContacts.val) : '',
   );
 };
 
 van.add(document.body, MiniApp());
 van.add(document.body, LargerApp());
+
+
+/*
+
+  if (remapped.length == 0) {
+    console.log('no contacts!?');
+  }
+
+  const groupedContacts = groupContacts(remapped);
+  const total = groupedContacts.useable.length + groupedContacts.withInvalidBirthYears.length + groupedContacts.withoutBirthdays.length;
+
+  console.log(`Imported ${total} contacts, of which ${groupedContacts.useable.length} are useable`);
+
+  return groupedContacts;
+ */
