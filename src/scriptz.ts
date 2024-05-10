@@ -1,4 +1,7 @@
-import van, { ChildDom } from "vanjs-core"
+const van: Van = (await import(import.meta.env.DEV ? 'vanjs-core/debug': 'vanjs-core')).default;
+
+import { ChildDom, Van } from "vanjs-core";
+
 import { loadGoogleApis } from "./googleNonsenseWrapper";
 import { parseVcards } from "./contacts/vcardContacts";
 import { loadContactsFromGoogle } from "./contacts/googleContacts";
@@ -62,12 +65,26 @@ function dateWithPlaceholders(date?: CalendarDate): string {
   }).join("");
 }
 
-const UserSuppliedContactData = (contacts: UserSuppliedContact[]) => {
+const UserSuppliedContactData = (contacts: UserSuppliedContact[]): Element => {
   if (contacts.length) {
     return Table({head: ["Name", "Birthday", "Parsed"], data: contacts.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)])});
   } else {
     return div("Couldn't find any contacts 🤔");
   }
+}
+
+// TODO: style
+const Collapsible = (header: ChildDom, children: ChildDom): Node => {
+  const collapsed = van.state(true);
+  return div(
+    button({
+      onclick: () => collapsed.val = !collapsed.val,
+    }, header),
+    div(
+      {style: () => (collapsed.val ? "display: none" : ""),},
+      children
+    )
+  );
 }
 
 function askUserForFile(): Promise<string> {
@@ -124,7 +141,7 @@ const LargerApp = () => {
             rawContacts.val = await loadContactsFromVcardFile();
           },
         }, "Import from vcf / vcard file"),
-      () => rawContacts.val ? UserSuppliedContactData(rawContacts.val) : '',
+      () => rawContacts.val ? Collapsible("Imported data", UserSuppliedContactData(rawContacts.val)) : '',
   );
 };
 
