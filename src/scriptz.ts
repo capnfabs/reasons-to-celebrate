@@ -1,4 +1,4 @@
-const van: Van = (await import(import.meta.env.DEV ? 'vanjs-core/debug': 'vanjs-core')).default;
+const van: Van = (await import(import.meta.env.DEV ? 'vanjs-core/debug' : 'vanjs-core')).default;
 
 import { ChildDom, Van } from "vanjs-core";
 
@@ -21,7 +21,7 @@ const MiniApp = () => {
   const birthday = van.state<string>(window.localStorage.getItem('birthday') || '');
   const shouldDisplay = van.derive(() => !!birthday.val);
   const daysAgo = van.derive(() => Math.floor((new Date().getTime() - new Date(birthday.val).getTime()) * MILLIS_TO_DAYS));
-  const allDates = van.derive(() => computeMilestones(new Date(birthday.val)));
+  const allDates = van.derive(() => computeMilestones(new Date(birthday.val), undefined, 15));
   return div(
     h2("When's your birthday?"),
     p("Please include the year. Don't worry, we won't tell anyone."),
@@ -41,7 +41,7 @@ const MiniApp = () => {
           " days ago today!",
         ),
         p("Maybe you'd like to celebrate these future milestones:"),
-        Table({ head: ["Occasion", "Date"], data: allDates.val.map(([day, date]) => [day.toLocaleString() + " days old", date.toLocaleDateString()]).slice(0, 10) })
+        Table({ head: ["Occasion", "Date"], data: allDates.val.map(([day, date]) => [day.toLocaleString() + " days old", date.toLocaleDateString()]) })
       ) : "",
   );
 }
@@ -67,7 +67,7 @@ function dateWithPlaceholders(date?: CalendarDate): string {
 
 const UserSuppliedContactData = (contacts: UserSuppliedContact[]): Element => {
   if (contacts.length) {
-    return Table({head: ["Name", "Birthday", "Parsed"], data: contacts.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)])});
+    return Table({ head: ["Name", "Birthday", "Parsed"], data: contacts.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)]) });
   } else {
     return div("Couldn't find any contacts 🤔");
   }
@@ -81,14 +81,14 @@ const Collapsible = (header: ChildDom, children: ChildDom): Node => {
       onclick: () => collapsed.val = !collapsed.val,
     }, header),
     div(
-      {style: () => (collapsed.val ? "display: none" : ""),},
+      { style: () => (collapsed.val ? "display: none" : ""), },
       children
     )
   );
 }
 
 function askUserForFile(): Promise<string> {
-  const promise = new Promise((resolve: (val: string) => void, reject: (val:string) => void) => {
+  const promise = new Promise((resolve: (val: string) => void, reject: (val: string) => void) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.vcf,.vcard,text/vcard';
@@ -135,13 +135,13 @@ const LargerApp = () => {
         },
         disabled: () => !googleLoaded.val,
       }, "Log in with Google"),
-      button(
-        {
-          onclick: async () => {
-            rawContacts.val = await loadContactsFromVcardFile();
-          },
-        }, "Import from vcf / vcard file"),
-      () => rawContacts.val ? Collapsible("Imported data", UserSuppliedContactData(rawContacts.val)) : '',
+    button(
+      {
+        onclick: async () => {
+          rawContacts.val = await loadContactsFromVcardFile();
+        },
+      }, "Import from vcf / vcard file"),
+    () => rawContacts.val ? Collapsible("Imported data", UserSuppliedContactData(rawContacts.val)) : '',
   );
 };
 

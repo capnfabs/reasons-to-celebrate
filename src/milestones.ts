@@ -40,10 +40,16 @@ const LIST_OF_SIGNIFICANT_DAYCOUNTS = (() => {
 })();
 
 
-const addDays = (date: Date, days: number) => {
+const addDays = (date: Date, days: number): Date => {
   const d = new Date(date.valueOf());
   d.setDate(date.getDate() + days);
   return d;
+}
+
+export const today = (): Date => {
+  const d = new Date();
+  const d2 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return d2;
 }
 
 
@@ -92,12 +98,15 @@ function formatLabel(label: string, days: number): string {
 }
 
 
-export const computeMilestones = (startDate: Date): [string, Date][] => {
+export const computeMilestones = (startDate: Date, earliest?: Date, limit?: number): [string, Date][] => {
   if (!startDate) {
     return [];
   }
+  earliest = earliest || addDays(today(), -60);
 
-  const dayCutoff = (new Date().getTime() - startDate.getTime()) * MILLIS_TO_DAYS;
+  // filter out days that are 'too historical'
+  // list is presorted so doing this now is a good perf optimisation
+  const dayCutoff = (earliest.getTime() - startDate.getTime()) * MILLIS_TO_DAYS;
   var relevantStartIdx = 0;
   for (var i = 0; i < LIST_OF_SIGNIFICANT_DAYCOUNTS.length; i++) {
     if (LIST_OF_SIGNIFICANT_DAYCOUNTS[i][1] >= dayCutoff) {
@@ -105,19 +114,17 @@ export const computeMilestones = (startDate: Date): [string, Date][] => {
       break;
     }
   }
-  if (relevantStartIdx > LIST_OF_SIGNIFICANT_DAYCOUNTS.length) {
-    // don't blow past end of the array
-    // TODO add better handling for people messing with really really old birthdays
-    relevantStartIdx = 0;
-  }
 
   const dayCounts = LIST_OF_SIGNIFICANT_DAYCOUNTS.slice(relevantStartIdx);
 
   const [label, birthdayNum] = buildBirthdayNumber(startDate);
-  dayCounts.push([label, birthdayNum]);
-  dayCounts.sort((a, b) => a[1] - b[1]);
 
-  const mapped: [string, Date][] = dayCounts.map(([label, days]) => [formatLabel(label, days), addDays(startDate, days)]);
-  const thirty_days_ago = addDays(new Date(), -30);
-  return mapped.filter(([,date]) => date > thirty_days_ago);
+  if (birthdayNum >= dayCutoff) {
+    // only insert if it's not too old
+    dayCounts.push([label, birthdayNum]);
+    dayCounts.sort((a, b) => a[1] - b[1]);
+  }
+
+  const mapped: [string, Date][] = dayCounts.slice(0, limit).map(([label, days]) => [formatLabel(label, days), addDays(startDate, days)]);
+  return mapped;
 };
