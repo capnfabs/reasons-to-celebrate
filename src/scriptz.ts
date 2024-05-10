@@ -6,7 +6,8 @@ import { loadGoogleApis } from "./googleNonsenseWrapper";
 import { parseVcards } from "./contacts/vcardContacts";
 import { loadContactsFromGoogle } from "./contacts/googleContacts";
 import { CalendarDate, UserSuppliedContact } from "./contacts/types";
-import { MILLIS_TO_DAYS, computeMilestones } from "./milestones";
+import { MILLIS_TO_DAYS, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
+import { ValidContact, selectValidContacts } from "./contacts/valid";
 
 const { b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
 
@@ -21,7 +22,7 @@ const MiniApp = () => {
   const birthday = van.state<string>(window.localStorage.getItem('birthday') || '');
   const shouldDisplay = van.derive(() => !!birthday.val);
   const daysAgo = van.derive(() => Math.floor((new Date().getTime() - new Date(birthday.val).getTime()) * MILLIS_TO_DAYS));
-  const allDates = van.derive(() => computeMilestones(new Date(birthday.val), undefined, 15));
+  const allDates = van.derive(() => computeMilestones(new Date(birthday.val), undefined, undefined, 15));
   return div(
     h2("When's your birthday?"),
     p("Please include the year. Don't worry, we won't tell anyone."),
@@ -123,6 +124,7 @@ async function loadContactsFromVcardFile(): Promise<UserSuppliedContact[]> {
 const LargerApp = () => {
   const googleLoaded = van.state(false);
   const rawContacts = van.state<UserSuppliedContact[] | null>(null);
+  const allMilestones = van.state<[ValidContact, [string, Date]][] | null>(null);
   const authedGoogleClient = loadGoogleApis(document).then((a) => { googleLoaded.val = true; return a });
 
   return div(
@@ -138,7 +140,11 @@ const LargerApp = () => {
     button(
       {
         onclick: async () => {
-          rawContacts.val = await loadContactsFromVcardFile();
+          const userContacts = await loadContactsFromVcardFile();
+          rawContacts.val = userContacts;
+          const validContacts = selectValidContacts(userContacts);
+          allMilestones.val = computeMilestonesForLotsOfPeople(validContacts, (c) => c.birthday);
+          console.log(allMilestones.val);
         },
       }, "Import from vcf / vcard file"),
     () => rawContacts.val ? Collapsible("Imported data", UserSuppliedContactData(rawContacts.val)) : '',

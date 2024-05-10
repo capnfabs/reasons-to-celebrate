@@ -40,7 +40,7 @@ const LIST_OF_SIGNIFICANT_DAYCOUNTS = (() => {
 })();
 
 
-const addDays = (date: Date, days: number): Date => {
+export const addDays = (date: Date, days: number): Date => {
   const d = new Date(date.valueOf());
   d.setDate(date.getDate() + days);
   return d;
@@ -97,8 +97,33 @@ function formatLabel(label: string, days: number): string {
   }
 }
 
+// given a sorted `array`, find the first index >= startValue and the first index >= endValue.
+// assumes startValue <= endValue
+function findRange(array: number[], startValue: number, endValue?: number): [number?, number?] {
+  var startIdx = null;
+  var endIdx = null;
+  var i = 0;
+  for (i = 0; i < array.length; i++) {
+    if (array[i] >= startValue) {
+      startIdx = i;
+      break;
+    }
+  }
+  i++;
+  if (endValue !== undefined) {
+    for (; i < array.length; i++) {
+      if (array[i] >= endValue) {
+        endIdx = i;
+        break
+      }
+    }
+  }
+  startIdx ||= array.length;
+  endIdx ||= array.length;
+  return [startIdx, endIdx];
+}
 
-export const computeMilestones = (startDate: Date, earliest?: Date, limit?: number): [string, Date][] => {
+export const computeMilestones = (startDate: Date, earliest?: Date, latest?: Date, limit?: number): [string, Date][] => {
   if (!startDate) {
     return [];
   }
@@ -106,21 +131,17 @@ export const computeMilestones = (startDate: Date, earliest?: Date, limit?: numb
 
   // filter out days that are 'too historical'
   // list is presorted so doing this now is a good perf optimisation
-  const dayCutoff = (earliest.getTime() - startDate.getTime()) * MILLIS_TO_DAYS;
-  var relevantStartIdx = 0;
-  for (var i = 0; i < LIST_OF_SIGNIFICANT_DAYCOUNTS.length; i++) {
-    if (LIST_OF_SIGNIFICANT_DAYCOUNTS[i][1] >= dayCutoff) {
-      relevantStartIdx = i;
-      break;
-    }
-  }
+  const earliestDayCutoff = (earliest.getTime() - startDate.getTime()) * MILLIS_TO_DAYS;
+  const latestDayCutoff = (latest && (latest.getTime() - startDate.getTime()) * MILLIS_TO_DAYS);
 
-  const dayCounts = LIST_OF_SIGNIFICANT_DAYCOUNTS.slice(relevantStartIdx);
+  const [startIdx, endIdxExclusive] = findRange(LIST_OF_SIGNIFICANT_DAYCOUNTS.map(([,num]) => num), earliestDayCutoff, latestDayCutoff);
+
+  const dayCounts = LIST_OF_SIGNIFICANT_DAYCOUNTS.slice(startIdx, endIdxExclusive);
 
   const [label, birthdayNum] = buildBirthdayNumber(startDate);
 
-  if (birthdayNum >= dayCutoff) {
-    // only insert if it's not too old
+  if (birthdayNum >= earliestDayCutoff && (latestDayCutoff === undefined || birthdayNum <= latestDayCutoff)) {
+    // only insert if it's within range
     dayCounts.push([label, birthdayNum]);
     dayCounts.sort((a, b) => a[1] - b[1]);
   }
@@ -128,3 +149,18 @@ export const computeMilestones = (startDate: Date, earliest?: Date, limit?: numb
   const mapped: [string, Date][] = dayCounts.slice(0, limit).map(([label, days]) => [formatLabel(label, days), addDays(startDate, days)]);
   return mapped;
 };
+
+export function computeMilestonesForLotsOfPeople<T>(people: T[], getBirthday: (person: T) => Date, earliest?: Date, latest?: Date): [T, [string, Date]][] {
+  // can we compute max milestones based on the date range?
+  // this has to be O(people*milestones)
+  earliest = earliest || addDays(today(), - 60);
+  latest = latest || addDays(today(), 3*365 + 1);
+
+  const result: [T, [string, Date]][] = people.flatMap((person) => {
+    const birthday = getBirthday(person);
+    const milestones = computeMilestones(birthday, earliest, latest);
+    return milestones.map((m) => [person, m]);
+  });
+  result.sort(([,[,a]], [,[,b]]) => a.getTime() - b.getTime());
+  return result;
+}
