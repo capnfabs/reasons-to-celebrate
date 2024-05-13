@@ -1,6 +1,5 @@
-const van: Van = (await import(import.meta.env.DEV ? 'vanjs-core/debug' : 'vanjs-core')).default;
-
-import { ChildDom, Van } from "vanjs-core";
+import { van } from "./ui/van";
+import { Collapsible, Columns, Table, devOnlyStorage } from "./ui/lib";
 
 import { loadGoogleApis } from "./googleNonsenseWrapper";
 import { parseVcards } from "./contacts/vcardContacts";
@@ -9,28 +8,10 @@ import { CalendarDate, UserSuppliedContact } from "./contacts/types";
 import { MILLIS_TO_DAYS, Milestone, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
 import { ValidContact, selectValidContacts } from "./contacts/valid";
 
-const { a, b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
+const { a, b, button, div, h2, input, p } = van.tags;
 
-const Table = ({ head, data }: { head: (ChildDom)[], data: ChildDom[][] }) => table(
-  head ? thead(tr(head.map(h => th(h)))) : [],
-  tbody(data.map(row => tr(
-    row.map(col => td(col)),
-  ))),
-);
 
-const devOnlyStorage = {
-  setItem: (key: string, value: string): void => {
-    if (import.meta.env.DEV) {
-      window.localStorage.setItem(key, value);
-    }
-  },
-  getItem: (key: string): string | null => {
-    if (import.meta.env.DEV) {
-      window.localStorage.getItem(key);
-    }
-    return null;
-  }
-};
+import styles from "./styles.module.css"
 
 const MiniApp = () => {
   const birthday = van.state<string>(devOnlyStorage.getItem('birthday') || '');
@@ -43,6 +24,7 @@ const MiniApp = () => {
     input({
       type: "date",
       value: birthday,
+      class: styles.greyBorder,
       oninput: e => {
         birthday.val = e.target.value;
         devOnlyStorage.setItem('birthday', e.target.value);
@@ -86,20 +68,6 @@ const UserSuppliedContactData = (contacts: UserSuppliedContact[]): Element => {
   } else {
     return div("Couldn't find any contacts 🤔");
   }
-}
-
-// TODO: style
-const Collapsible = (header: ChildDom, children: ChildDom): Node => {
-  const collapsed = van.state(true);
-  return div(
-    button({
-      onclick: () => collapsed.val = !collapsed.val,
-    }, header),
-    div(
-      { style: () => (collapsed.val ? "display: none" : ""), },
-      children
-    )
-  );
 }
 
 function askUserForFile(): Promise<string> {
@@ -148,33 +116,38 @@ const LargerApp = () => {
   const allMilestones = van.state<[ValidContact, Milestone][] | null>(null);
   const authedGoogleClient = loadGoogleApis(document).then((a) => { googleLoaded.val = true; return a });
 
+  const loadContacts = async (loader: Promise<UserSuppliedContact[]>) => {
+    const userContacts = await loader;
+    rawContacts.val = userContacts;
+    const validContacts = selectValidContacts(userContacts);
+    allMilestones.val = computeMilestonesForLotsOfPeople(validContacts, (c) => c.birthday);
+  };
+
   return div(
     h2("How about your friends?"),
-    p("Data / privacy: your data stays local in this browser tab. It's not stored or uploaded anywhere. ", a({href:"./privacy.html"}, "More info")),
-    // TODO make this error if we can't load Google
-    button(
-      {
-        onclick: async () => {
-          const userContacts = await loadContactsFromGoogle(authedGoogleClient);
-          rawContacts.val = userContacts;
-          const validContacts = selectValidContacts(userContacts);
-          allMilestones.val = computeMilestonesForLotsOfPeople(validContacts, (c) => c.birthday);
-        },
-        disabled: () => !googleLoaded.val,
-      }, "Log in with Google"),
-    button(
-      {
-        onclick: async () => {
-          const userContacts = await loadContactsFromVcardFile();
-          rawContacts.val = userContacts;
-          const validContacts = selectValidContacts(userContacts);
-          allMilestones.val = computeMilestonesForLotsOfPeople(validContacts, (c) => c.birthday);
-        },
-      }, "Import from vcf / vcard file"),
+    p({ class: styles.disclaimer }, "(", a({ href: './how-to-import.html' }, "How to import"), " | ", a({ href: "./privacy.html" }, "All data stays in your browser"), ")"),
+    Columns(
+      // TODO make this error if we can't load Google
+      button(
+        {
+          class: [styles.goodButton].join(' '),
+          onclick: async () => {
+            loadContacts(loadContactsFromGoogle(authedGoogleClient));
+          },
+          disabled: () => !googleLoaded.val,
+        }, "Log in with Google"),
+        button(
+          {
+            class: [styles.goodButton].join(' '),
+            onclick: async () => {
+              loadContacts(loadContactsFromVcardFile());
+            },
+          }, "Import from vcf / vcard file"),
+    ),
     () => rawContacts.val ? Collapsible("Imported data", UserSuppliedContactData(rawContacts.val)) : '',
     () => allMilestones.val ? MergedMilestonesTable(allMilestones.val) : '',
   );
 };
 
-van.add(document.getElementById('appTarget')!, MiniApp());
-van.add(document.getElementById('appTarget')!, LargerApp());
+van.add(document.getElementById('appTarget1')!, MiniApp());
+van.add(document.getElementById('appTarget2')!, LargerApp());
