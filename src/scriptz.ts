@@ -9,7 +9,7 @@ import { CalendarDate, UserSuppliedContact } from "./contacts/types";
 import { MILLIS_TO_DAYS, Milestone, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
 import { ValidContact, selectValidContacts } from "./contacts/valid";
 
-const { b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
+const { a, b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
 
 const Table = ({ head, data }: { head: (ChildDom)[], data: ChildDom[][] }) => table(
   head ? thead(tr(head.map(h => th(h)))) : [],
@@ -18,8 +18,22 @@ const Table = ({ head, data }: { head: (ChildDom)[], data: ChildDom[][] }) => ta
   ))),
 );
 
+const devOnlyStorage = {
+  setItem: (key: string, value: string): void => {
+    if (import.meta.env.DEV) {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  getItem: (key: string): string | null => {
+    if (import.meta.env.DEV) {
+      window.localStorage.getItem(key);
+    }
+    return null;
+  }
+};
+
 const MiniApp = () => {
-  const birthday = van.state<string>(window.localStorage.getItem('birthday') || '');
+  const birthday = van.state<string>(devOnlyStorage.getItem('birthday') || '');
   const shouldDisplay = van.derive(() => !!birthday.val);
   const daysAgo = van.derive(() => Math.floor((new Date().getTime() - new Date(birthday.val).getTime()) * MILLIS_TO_DAYS));
   const allDates = van.derive(() => computeMilestones(new Date(birthday.val), undefined, undefined, 15));
@@ -31,18 +45,18 @@ const MiniApp = () => {
       value: birthday,
       oninput: e => {
         birthday.val = e.target.value;
-        window.localStorage.setItem('birthday', e.target.value);
+        devOnlyStorage.setItem('birthday', e.target.value);
       }
     }),
     () => shouldDisplay.val ?
       div(
         p(
           "Nice! You were born ",
-          b(daysAgo),
-          " days ago today!",
+          b(daysAgo.val.toLocaleString()),
+          " days ago today! 🥳",
         ),
         p("Maybe you'd like to celebrate these future milestones:"),
-        Table({ head: ["Occasion", "Date"], data: allDates.val.map(({formattedLabel, date}) => [formattedLabel + " days old", date.toLocaleDateString()]) })
+        Table({ head: ["Occasion", "Date"], data: allDates.val.map(({ formattedLabel, date }) => [formattedLabel + " days old", date.toLocaleDateString()]) })
       ) : "",
   );
 }
@@ -136,6 +150,7 @@ const LargerApp = () => {
 
   return div(
     h2("How about your friends?"),
+    p("Data / privacy: your data stays local in this browser tab. It's not stored or uploaded anywhere. ", a({href:"./privacy.html"}, "More info")),
     // TODO make this error if we can't load Google
     button(
       {
@@ -161,5 +176,5 @@ const LargerApp = () => {
   );
 };
 
-van.add(document.body, MiniApp());
-van.add(document.body, LargerApp());
+van.add(document.getElementById('appTarget')!, MiniApp());
+van.add(document.getElementById('appTarget')!, LargerApp());

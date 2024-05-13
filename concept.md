@@ -17,6 +17,9 @@ This is also why I like the "dovenests" subreddit and "bone hurting juice"; it i
 
 THIS IS ONLY FOR THE LIVING
 
+- Why not hours / minutes?
+-
+
 ## Mourning a long-gone time online
 - I liked the idea of free access to APIs; contact graphs etc etc.
 - Back in 2010s I would've built this as something that connected to Facebook.
