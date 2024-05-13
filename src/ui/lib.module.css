@@ -1,0 +1,26 @@
+.collapse-header {
+    width: 100%;
+    text-align: left;
+    border: none;
+    border-radius: 5px;
+}
+.collapse-header::before {
+    content: '⮕';
+    display: inline-block;
+    transform: rotate(0deg);
+    transition: transform 0.2s;
+}
+.collapse-header:not(.collapsed)::before {
+    transform: rotate(90deg);
+    transition: transform 0.2s;
+}
+
+.columns {
+    display: flex;
+}
+
+.columns .col {
+    flex-basis: 0;
+    flex-grow: 1;
+    max-width: 100%;
+}
