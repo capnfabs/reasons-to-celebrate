@@ -1,11 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Poetsen+One&display=swap');
-/*
-@import url("https://cdn.jsdelivr.net/npm/water.css@2/out/water.css");
-*/
+
+/* @import url("https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"); */
+
 
 
 :root {
-  /*--header-font-family: "Delicious Handrawn", "Arial";*/
   --header-font-family: "Poetsen One", "Arial";
   --header-font-weight: 400;
   --body-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -36,6 +35,12 @@ h6 {
   font-weight: var(--header-font-weight);
 }
 
+hr {
+  border: none;
+  border-top: 1px solid #dbdbdb;
+  border-top: 1px solid var(--border);
+}
+
 .content-container {
   background-color: rgb(250, 250, 210);
   overflow-y: auto;
@@ -43,9 +48,14 @@ h6 {
   max-width: 45rem;
   padding-left: 2em;
   padding-right: 2em;
+  padding-bottom: 2em;
   margin: 0 auto;
   border-left: solid 1px #808080;
   border-right: solid 1px #808080;
+}
+
+.align-right {
+  text-align: right;
 }
 
 .padding-v {
