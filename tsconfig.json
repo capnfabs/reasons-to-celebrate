@@ -21,7 +21,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
-    "types": ["vite/client"]
   },
   "include": [
     "src"
