@@ -1,5 +1,5 @@
 import { van } from "./ui/van";
-import { Collapsible, Columns, Table, devOnlyStorage } from "./ui/lib";
+import { Columns, Table, devOnlyStorage } from "./ui/lib";
 
 import { loadGoogleApis } from "./googleNonsenseWrapper";
 import { parseVcards } from "./contacts/vcardContacts";
@@ -12,6 +12,8 @@ const { a, b, button, div, h2, input, p } = van.tags;
 
 
 import styles from "./styles.module.css"
+import { Tabs } from "vanjs-ui";
+import { ChildDom } from "vanjs-core";
 
 const MiniApp = () => {
   const birthday = van.state<string>(devOnlyStorage.getItem('birthday') || '');
@@ -144,8 +146,16 @@ const LargerApp = () => {
             },
           }, "Import from vcf / vcard file"),
     ),
-    () => rawContacts.val ? Collapsible("Imported data", UserSuppliedContactData(rawContacts.val)) : '',
-    () => allMilestones.val ? MergedMilestonesTable(allMilestones.val) : '',
+    () => {
+      const tabs: {Milestones?: ChildDom, "Imported Contacts (debug)"?: ChildDom} = {};
+      if (allMilestones.val) {
+        tabs["Milestones"] = MergedMilestonesTable(allMilestones.val);
+      }
+      if (rawContacts.val) {
+        tabs["Imported Contacts (debug)"] = UserSuppliedContactData(rawContacts.val);
+      }
+      return Tabs({}, tabs);
+    },
   );
 };
 

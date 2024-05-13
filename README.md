@@ -10,6 +10,8 @@ npm run dev # | build | preview | test
 - Include instructions for importing (make a video with sesame street characters)
 - Make it look nice (CSS)
 - Debug the thing where you have to import multiple times
+- Add confetti animation
+- Add thing that says "that's today!"
 
 ## Things to add later:
 - Edit imported data?

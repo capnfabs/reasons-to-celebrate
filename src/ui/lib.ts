@@ -51,3 +51,8 @@ export const Columns = (...content: ChildDom[]): Node => {
     ...content.map((c) => div({class: libStyles.col}, c)),
   )
 }
+
+export type Tab = {
+  header: ChildDom,
+  body: ChildDom,
+}
