@@ -39,6 +39,10 @@ const LIST_OF_SIGNIFICANT_DAYCOUNTS = (() => {
   return milestones;
 })();
 
+export type Milestone = {
+  formattedLabel: string,
+  date: Date,
+}
 
 export const addDays = (date: Date, days: number): Date => {
   const d = new Date(date.valueOf());
@@ -123,7 +127,7 @@ function findRange(array: number[], startValue: number, endValue?: number): [num
   return [startIdx, endIdx];
 }
 
-export const computeMilestones = (startDate: Date, earliest?: Date, latest?: Date, limit?: number): [string, Date][] => {
+export const computeMilestones = (startDate: Date, earliest?: Date, latest?: Date, limit?: number): Milestone[] => {
   if (!startDate) {
     return [];
   }
@@ -146,21 +150,21 @@ export const computeMilestones = (startDate: Date, earliest?: Date, latest?: Dat
     dayCounts.sort((a, b) => a[1] - b[1]);
   }
 
-  const mapped: [string, Date][] = dayCounts.slice(0, limit).map(([label, days]) => [formatLabel(label, days), addDays(startDate, days)]);
+  const mapped: Milestone[] = dayCounts.slice(0, limit).map(([label, days]) => ({formattedLabel: formatLabel(label, days), date: addDays(startDate, days)}));
   return mapped;
 };
 
-export function computeMilestonesForLotsOfPeople<T>(people: T[], getBirthday: (person: T) => Date, earliest?: Date, latest?: Date): [T, [string, Date]][] {
+export function computeMilestonesForLotsOfPeople<T>(people: T[], getBirthday: (person: T) => Date, earliest?: Date, latest?: Date): [T, Milestone][] {
   // can we compute max milestones based on the date range?
   // this has to be O(people*milestones)
   earliest = earliest || addDays(today(), - 60);
   latest = latest || addDays(today(), 3*365 + 1);
 
-  const result: [T, [string, Date]][] = people.flatMap((person) => {
+  const result: [T, Milestone][] = people.flatMap((person) => {
     const birthday = getBirthday(person);
     const milestones = computeMilestones(birthday, earliest, latest);
-    return milestones.map((m) => [person, m]);
+    return milestones.map<[T, Milestone]>((m) => [person, m]);
   });
-  result.sort(([,[,a]], [,[,b]]) => a.getTime() - b.getTime());
+  result.sort(([,a], [,b]) => a.date.getTime() - b.date.getTime());
   return result;
 }

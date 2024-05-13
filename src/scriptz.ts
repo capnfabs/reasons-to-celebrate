@@ -6,7 +6,7 @@ import { loadGoogleApis } from "./googleNonsenseWrapper";
 import { parseVcards } from "./contacts/vcardContacts";
 import { loadContactsFromGoogle } from "./contacts/googleContacts";
 import { CalendarDate, UserSuppliedContact } from "./contacts/types";
-import { MILLIS_TO_DAYS, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
+import { MILLIS_TO_DAYS, Milestone, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
 import { ValidContact, selectValidContacts } from "./contacts/valid";
 
 const { b, button, div, h2, table, thead, tbody, input, tr, th, td, p } = van.tags;
@@ -42,7 +42,7 @@ const MiniApp = () => {
           " days ago today!",
         ),
         p("Maybe you'd like to celebrate these future milestones:"),
-        Table({ head: ["Occasion", "Date"], data: allDates.val.map(([day, date]) => [day.toLocaleString() + " days old", date.toLocaleDateString()]) })
+        Table({ head: ["Occasion", "Date"], data: allDates.val.map(({formattedLabel, date}) => [formattedLabel + " days old", date.toLocaleDateString()]) })
       ) : "",
   );
 }
@@ -121,10 +121,17 @@ async function loadContactsFromVcardFile(): Promise<UserSuppliedContact[]> {
   return parseVcards(fileContent);
 };
 
+const MergedMilestonesTable = (milestones: [ValidContact, Milestone][]) => {
+  return Table({
+    head: ['Person', 'Occasion', 'Date'],
+    data: milestones.map(([p, m]) => [p.name, m.formattedLabel + " days old", m.date.toLocaleDateString()]),
+  });
+};
+
 const LargerApp = () => {
   const googleLoaded = van.state(false);
   const rawContacts = van.state<UserSuppliedContact[] | null>(null);
-  const allMilestones = van.state<[ValidContact, [string, Date]][] | null>(null);
+  const allMilestones = van.state<[ValidContact, Milestone][] | null>(null);
   const authedGoogleClient = loadGoogleApis(document).then((a) => { googleLoaded.val = true; return a });
 
   return div(
@@ -133,7 +140,10 @@ const LargerApp = () => {
     button(
       {
         onclick: async () => {
-          rawContacts.val = await loadContactsFromGoogle(authedGoogleClient);
+          const userContacts = await loadContactsFromGoogle(authedGoogleClient);
+          rawContacts.val = userContacts;
+          const validContacts = selectValidContacts(userContacts);
+          allMilestones.val = computeMilestonesForLotsOfPeople(validContacts, (c) => c.birthday);
         },
         disabled: () => !googleLoaded.val,
       }, "Log in with Google"),
@@ -144,10 +154,10 @@ const LargerApp = () => {
           rawContacts.val = userContacts;
           const validContacts = selectValidContacts(userContacts);
           allMilestones.val = computeMilestonesForLotsOfPeople(validContacts, (c) => c.birthday);
-          console.log(allMilestones.val);
         },
       }, "Import from vcf / vcard file"),
     () => rawContacts.val ? Collapsible("Imported data", UserSuppliedContactData(rawContacts.val)) : '',
+    () => allMilestones.val ? MergedMilestonesTable(allMilestones.val) : '',
   );
 };
 
