@@ -8,11 +8,10 @@ import { CalendarDate, UserSuppliedContact } from "./contacts/types";
 import { MILLIS_TO_DAYS, Milestone, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
 import { ValidContact, selectValidContacts } from "./contacts/valid";
 
-const { a, b, button, div, h2, input, p } = van.tags;
+const { a, b, br, button, div, h2, h3, input, p } = van.tags;
 
 
 import styles from "./styles.module.css"
-import { Tabs } from "vanjs-ui";
 import { ChildDom } from "vanjs-core";
 
 const MiniApp = () => {
@@ -64,9 +63,27 @@ function dateWithPlaceholders(date?: CalendarDate): string {
   }).join("");
 }
 
+function groupAndFilterUserSuppliedContacts(contacts: UserSuppliedContact[]): { contactsWithSomeBirthday: UserSuppliedContact[], countContactsWithoutBirthday: number } {
+  const contactsWithSomeBirthday = [];
+  let countContactsWithoutBirthday = 0;
+  for (const contact of contacts) {
+    if (contact.birthdayParsed || contact.birthdayRawText) {
+      contactsWithSomeBirthday.push(contact);
+    } else {
+      countContactsWithoutBirthday++;
+    }
+  }
+  return { contactsWithSomeBirthday, countContactsWithoutBirthday };
+}
+
 const UserSuppliedContactData = (contacts: UserSuppliedContact[]): Element => {
   if (contacts.length) {
-    return Table({ head: ["Name", "Birthday", "Parsed"], data: contacts.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)]) });
+    const { contactsWithSomeBirthday, countContactsWithoutBirthday } = groupAndFilterUserSuppliedContacts(contacts);
+    return div(
+      countContactsWithoutBirthday ? p({ class: styles.disclaimer }, `Skipping ${countContactsWithoutBirthday.toLocaleString()} contacts which don't have birthdays.`) : '',
+      p({ class: styles.disclaimer }, `Your contacts' birthdays need to have a year to be useable in this app, and we automatically filter out contacts born before 1900.`),
+      Table({ head: ["Name", "Birthday", "Parsed"], data: contactsWithSomeBirthday.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)]) })
+    );
   } else {
     return div("Couldn't find any contacts 🤔");
   }
@@ -112,11 +129,23 @@ const MergedMilestonesTable = (milestones: [ValidContact, Milestone][]) => {
   });
 };
 
+const TitleWithSmolLinkOnRight = (kwargs: {title: string, smolLink: ChildDom}): ChildDom => {
+  const {title, smolLink} = kwargs;
+  return div(
+    {style: "display: flex; align-items: baseline;"},
+    h3({
+      style: "flex-grow: 1",
+    }, title),
+    div({class: styles.disclaimer}, smolLink),
+  );
+}
+
 const LargerApp = () => {
   const googleLoaded = van.state(false);
   const rawContacts = van.state<UserSuppliedContact[] | null>(null);
   const allMilestones = van.state<[ValidContact, Milestone][] | null>(null);
   const authedGoogleClient = loadGoogleApis(document).then((a) => { googleLoaded.val = true; return a });
+  const debugView = van.state(false);
 
   const loadContacts = async (loader: Promise<UserSuppliedContact[]>) => {
     const userContacts = await loader;
@@ -138,23 +167,40 @@ const LargerApp = () => {
           },
           disabled: () => !googleLoaded.val,
         }, "Log in with Google"),
-        button(
-          {
-            class: [styles.goodButton].join(' '),
-            onclick: async () => {
-              loadContacts(loadContactsFromVcardFile());
-            },
-          }, "Import from vcf / vcard file"),
+      button(
+        {
+          class: [styles.goodButton].join(' '),
+          onclick: async () => {
+            loadContacts(loadContactsFromVcardFile());
+          },
+        }, "Import from vcf / vcard file"),
     ),
     () => {
-      const tabs: {Milestones?: ChildDom, "Imported Contacts (debug)"?: ChildDom} = {};
-      if (allMilestones.val) {
-        tabs["Milestones"] = MergedMilestonesTable(allMilestones.val);
+      // should both be set at the same time
+      if (!(allMilestones.val && rawContacts.val)) {
+        console.log('early exit');
+        return '';
       }
-      if (rawContacts.val) {
-        tabs["Imported Contacts (debug)"] = UserSuppliedContactData(rawContacts.val);
-      }
-      return Tabs({}, tabs);
+
+      const milestonesView = div(
+        TitleWithSmolLinkOnRight({
+          title: 'Milestones',
+          smolLink: a(
+            {onclick: () => debugView.val = true},
+            'Show imported contacts (for debugging)'
+          )
+        }),
+        MergedMilestonesTable(allMilestones.val),
+      );
+      const importedContactsView = div(
+        TitleWithSmolLinkOnRight({
+          title: 'Imported Contacts (debug)',
+          smolLink: a({onclick: () => debugView.val = false}, 'Show milestones')
+        }),
+        UserSuppliedContactData(rawContacts.val),
+      );
+
+      return debugView.val ? importedContactsView : milestonesView;
     },
   );
 };
