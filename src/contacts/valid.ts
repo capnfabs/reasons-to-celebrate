@@ -7,7 +7,7 @@ export type ValidContact = {
 }
 
 function birthdateValid(birthday: CalendarDate): birthday is {day: number, month: number, year: number} {
-  return !!(birthday.day && birthday.month && birthday.year && birthday.year > 1900);
+  return !!(birthday.day && birthday.month && birthday.year && birthday.year >= 1900);
 }
 
 export function selectValidContacts(contacts: UserSuppliedContact[]): ValidContact[] {
