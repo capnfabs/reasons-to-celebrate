@@ -116,7 +116,7 @@ function findRange(array: number[], startValue: number, endValue?: number): [num
       }
     }
   }
-  startIdx ||= array.length;
+  startIdx ||= 0;
   endIdx ||= array.length;
   return [startIdx, endIdx];
 }

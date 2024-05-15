@@ -16,10 +16,10 @@ import { ChildDom, ValidChildDomValue } from "vanjs-core";
 import { SafeDate } from "./datemath";
 
 const expired = (elem: ChildDom): ChildDom => {
-  return span({class: styles.strikethrough}, elem);
+  return span({ class: styles.strikethrough }, elem);
 }
 const greyed = (elem: ChildDom): ValidChildDomValue => {
-  return span({class: styles.greyed}, elem);
+  return span({ class: styles.greyed }, elem);
 }
 
 function getRelativeLabel(date: SafeDate): ChildDom | undefined {
@@ -40,7 +40,21 @@ function getRelativeLabel(date: SafeDate): ChildDom | undefined {
 
 const MiniApp = () => {
   const birthday = van.state<string>(devOnlyStorage.getItem('birthday') || '');
-  const shouldDisplay = van.derive(() => !!birthday.val);
+  const shouldDisplay = van.derive(() => {
+    if (!birthday.val) {
+      return false;
+    }
+    const yearComponent = birthday.val.split('-')?.at(0);
+    return (yearComponent && parseInt(yearComponent, 10) >= 1000);
+  });
+  const timeTraveller = van.derive(() => {
+    const tentativeBirthday = SafeDate.fromString(birthday.val);
+    if (tentativeBirthday.year < 1900) {
+      return "That's a lot of days.";
+    } if (SafeDate.daysBetween(SafeDate.today(), tentativeBirthday) < 0) {
+      return "Either you were born in the future sometime, or the clock on your device is all out of whack. 😵‍💫";
+    }
+  });
   const daysAgo = van.derive(() => Math.floor(SafeDate.daysBetween(SafeDate.today(), SafeDate.fromString(birthday.val))));
   const allDates = van.derive(() => computeMilestones(SafeDate.fromString(birthday.val), undefined, undefined, 15));
   const currentDate = SafeDate.today();
@@ -63,14 +77,17 @@ const MiniApp = () => {
           b(daysAgo.val.toLocaleString()),
           " days ago today! 🥳",
         ),
-        p("Maybe you'd like to celebrate these future milestones:"),
-        Table({
-          head: ["Occasion", "Date"],
-          data: allDates.val.map(({ formattedLabel, date }) => {
-            const modifier = SafeDate.daysBetween(date, currentDate) < 0 ? expired : (a: ChildDom) => a;
-            const label = getRelativeLabel(date);
-            return [modifier(formattedLabel + " days old"), [modifier(date.toLocaleDateString()), label]]})
+        !!timeTraveller.val ? timeTraveller.val : [
+          p("Maybe you'd like to celebrate these future milestones:"),
+          Table({
+            head: ["Occasion", "Date"],
+            data: allDates.val.map(({ formattedLabel, date }) => {
+              const modifier = SafeDate.daysBetween(date, currentDate) < 0 ? expired : (a: ChildDom) => a;
+              const label = getRelativeLabel(date);
+              return [modifier(formattedLabel + " days old"), [modifier(date.toLocaleDateString()), label]]
+            })
           })
+        ]
       ) : "",
   );
 }
@@ -166,14 +183,14 @@ const MergedMilestonesTable = (milestones: [ValidContact, Milestone][]) => {
   });
 };
 
-const TitleWithSmolLinkOnRight = (kwargs: {title: string, smolLink: ChildDom}): ChildDom => {
-  const {title, smolLink} = kwargs;
+const TitleWithSmolLinkOnRight = (kwargs: { title: string, smolLink: ChildDom }): ChildDom => {
+  const { title, smolLink } = kwargs;
   return div(
-    {style: "display: flex; align-items: baseline;"},
+    { style: "display: flex; align-items: baseline;" },
     h3({
       style: "flex-grow: 1",
     }, title),
-    div({class: styles.disclaimer}, smolLink),
+    div({ class: styles.disclaimer }, smolLink),
   );
 }
 
@@ -235,7 +252,7 @@ const LargerApp = () => {
         TitleWithSmolLinkOnRight({
           title: 'Milestones',
           smolLink: a(
-            {onclick: () => debugView.val = true},
+            { onclick: () => debugView.val = true },
             'Show imported contacts (for debugging)'
           )
         }),
@@ -244,7 +261,7 @@ const LargerApp = () => {
       const importedContactsView = div(
         TitleWithSmolLinkOnRight({
           title: 'Imported Contacts (debug)',
-          smolLink: a({onclick: () => debugView.val = false}, 'Show milestones')
+          smolLink: a({ onclick: () => debugView.val = false }, 'Show milestones')
         }),
         UserSuppliedContactData(rawContacts.val),
       );
