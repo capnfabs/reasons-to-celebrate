@@ -34,7 +34,7 @@ function getRelativeLabel(date: SafeDate): ChildDom | undefined {
 
   const numDays = SafeDate.daysBetween(date, today);
   if (numDays > 0 && numDays < 7) {
-    return " (less than a week away!)";
+    return " (less than a week!)";
   }
 }
 
@@ -154,9 +154,16 @@ async function loadContactsFromVcardFile(): Promise<UserSuppliedContact[]> {
 };
 
 const MergedMilestonesTable = (milestones: [ValidContact, Milestone][]) => {
+  const currentDate = SafeDate.today();
+
   return Table({
     head: ['Person', 'Occasion', 'Date'],
-    data: milestones.map(([p, m]) => [p.name, m.formattedLabel + " days old", m.date.toLocaleDateString()]),
+    data: milestones.map(([p, m]) => {
+      const pastDate = SafeDate.daysBetween(m.date, currentDate) < 0;
+      const modifier = pastDate ? expired : (a: ChildDom) => a;
+      const label = getRelativeLabel(m.date);
+      return [pastDate ? greyed(p.name) : p.name, modifier(m.formattedLabel + " days old"), [modifier(m.date.toLocaleDateString()), label]]
+    }),
   });
 };
 
