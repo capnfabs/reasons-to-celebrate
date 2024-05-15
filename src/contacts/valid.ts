@@ -1,9 +1,10 @@
+import { SafeDate } from "../datemath";
 import { filterMap } from "../util";
 import { CalendarDate, UserSuppliedContact } from "./types";
 
 export type ValidContact = {
   name: string,
-  birthday: Date
+  birthday: SafeDate
 }
 
 function birthdateValid(birthday: CalendarDate): birthday is {day: number, month: number, year: number} {
@@ -15,11 +16,11 @@ export function selectValidContacts(contacts: UserSuppliedContact[]): ValidConta
     if (c.birthdayParsed && birthdateValid(c.birthdayParsed)) {
       return {
         name: c.name,
-        birthday: new Date(
+        birthday: new SafeDate(
           c.birthdayParsed.year,
-          // month is zero-indexed, RIP
-          c.birthdayParsed.month - 1,
-          c.birthdayParsed.day)
+          c.birthdayParsed.month,
+          c.birthdayParsed.day
+        )
       }
     }
   });

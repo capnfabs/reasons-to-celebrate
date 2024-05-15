@@ -10,10 +10,8 @@ npm run dev # | build | preview | test
 - Polish loading / async etc
 - Include instructions for importing (make a video with sesame street characters)
 - Make it look nice (CSS)
-    - `a[onclick]` should have link styling
     - Add thing that says "that's today! / tomorrow! / this week!",
     - grey / cross-out old ones
-    - Merge some more things in from Water CSS
 - Maybe delete VanUI
 
 ## Out of scope:

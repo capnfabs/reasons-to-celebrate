@@ -5,20 +5,45 @@ import { loadGoogleApis } from "./googleNonsenseWrapper";
 import { parseVcards } from "./contacts/vcardContacts";
 import { loadContactsFromGoogle } from "./contacts/googleContacts";
 import { CalendarDate, UserSuppliedContact } from "./contacts/types";
-import { MILLIS_TO_DAYS, Milestone, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
+import { Milestone, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
 import { ValidContact, selectValidContacts } from "./contacts/valid";
 
-const { a, b, br, button, div, h2, h3, input, p } = van.tags;
+const { a, b, button, div, h2, h3, input, p, span } = van.tags;
 
 
 import styles from "./styles.module.css"
 import { ChildDom } from "vanjs-core";
+import { SafeDate } from "./datemath";
+
+const expired = (elem: ChildDom): ChildDom => {
+  return span({class: styles.strikethrough}, elem);
+}
+const greyed = (elem: ChildDom): ChildDom => {
+  return span({class: styles.greyed}, elem);
+}
+
+function getRelativeLabel(date: SafeDate): ChildDom | undefined {
+  const today = SafeDate.today();
+  if (SafeDate.equals(date, today.addDays(-1))) {
+    return greyed(" (yesterday!)");
+  } else if (SafeDate.equals(date, today)) {
+    return " (today! 🥳)";
+  } else if (SafeDate.equals(date, today.addDays(1))) {
+    return " (tomorrow!)";
+  }
+
+  const numDays = SafeDate.daysBetween(date, today);
+  if (numDays > 0 && numDays < 7) {
+    return " (less than a week away!)";
+  }
+}
 
 const MiniApp = () => {
   const birthday = van.state<string>(devOnlyStorage.getItem('birthday') || '');
   const shouldDisplay = van.derive(() => !!birthday.val);
-  const daysAgo = van.derive(() => Math.floor((new Date().getTime() - new Date(birthday.val).getTime()) * MILLIS_TO_DAYS));
-  const allDates = van.derive(() => computeMilestones(new Date(birthday.val), undefined, undefined, 15));
+  const daysAgo = van.derive(() => Math.floor(SafeDate.daysBetween(SafeDate.today(), SafeDate.fromString(birthday.val))));
+  const allDates = van.derive(() => computeMilestones(SafeDate.fromString(birthday.val), undefined, undefined, 15));
+  const currentDate = SafeDate.today();
   return div(
     h2("When's your birthday?"),
     p("Please include the year. Don't worry, we won't tell anyone."),
@@ -39,7 +64,13 @@ const MiniApp = () => {
           " days ago today! 🥳",
         ),
         p("Maybe you'd like to celebrate these future milestones:"),
-        Table({ head: ["Occasion", "Date"], data: allDates.val.map(({ formattedLabel, date }) => [formattedLabel + " days old", date.toLocaleDateString()]) })
+        Table({
+          head: ["Occasion", "Date"],
+          data: allDates.val.map(({ formattedLabel, date }) => {
+            const modifier = SafeDate.daysBetween(date, currentDate) < 0 ? expired : (a: ChildDom) => a;
+            const label = getRelativeLabel(date);
+            return [modifier(formattedLabel + " days old"), [modifier(date.toLocaleDateString()), label]]})
+          })
       ) : "",
   );
 }
@@ -80,8 +111,8 @@ const UserSuppliedContactData = (contacts: UserSuppliedContact[]): Element => {
   if (contacts.length) {
     const { contactsWithSomeBirthday, countContactsWithoutBirthday } = groupAndFilterUserSuppliedContacts(contacts);
     return div(
-      countContactsWithoutBirthday ? p({ class: styles.disclaimer }, `Skipping ${countContactsWithoutBirthday.toLocaleString()} contacts which don't have birthdays.`) : '',
       p({ class: styles.disclaimer }, `Your contacts' birthdays need to have a year to be useable in this app, and we automatically filter out contacts born before 1900.`),
+      countContactsWithoutBirthday ? p({ class: styles.disclaimer }, `Skipping ${countContactsWithoutBirthday.toLocaleString()} contacts which don't have birthdays.`) : '',
       Table({ head: ["Name", "Birthday", "Parsed"], data: contactsWithSomeBirthday.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)]) })
     );
   } else {

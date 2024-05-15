@@ -20,6 +20,8 @@ THIS IS ONLY FOR THE LIVING
 - Why not hours / minutes?
 -
 
+https://goodenough.us/blog/2023-08-23-bad-ideas-are-fun/
+
 ## Mourning a long-gone time online
 - I liked the idea of free access to APIs; contact graphs etc etc.
 - Back in 2010s I would've built this as something that connected to Facebook.

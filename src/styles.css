@@ -1,14 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Poetsen+One&display=swap');
 
-/* @import url("https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"); */
-
-
+/* Some stuff here borrowed from Water.css, see https://watercss.kognise.dev */
 
 :root {
   --header-font-family: "Poetsen One", "Arial";
   --header-font-weight: 400;
   --body-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --border: #dbdbdb;
   --background: #efefef;
   --background-alt: #f7f7f7;
 }
@@ -23,6 +20,7 @@ body {
   font-family: var(--body-font-family);
   background-color: lightpink;
   min-height: 100%;
+  text-rendering: optimizeLegibility;
 }
 
 h1,
@@ -38,7 +36,6 @@ h6 {
 hr {
   border: none;
   border-top: 1px solid #dbdbdb;
-  border-top: 1px solid var(--border);
 }
 
 .content-container {
@@ -96,28 +93,23 @@ th {
 
 thead {
   border-bottom: 1px solid #dbdbdb;
-  border-bottom: 1px solid var(--border);
 }
 
 
 tfoot {
   border-top: 1px solid #dbdbdb;
-  border-top: 1px solid var(--border);
 }
 
 tbody tr:nth-child(even) {
-  background-color: #efefef;
-  background-color: var(--background);
+  background-color: rgb(240, 240, 202);
 }
 
-tbody tr:nth-child(even) button {
-  background-color: #f7f7f7;
-  background-color: var(--background-alt);
+a, a:visited {
+  text-decoration: none;
+  color: #0076d1;
+  cursor: pointer;
 }
 
-
-
-tbody tr:nth-child(even) button:hover {
-  background-color: #fff;
-  background-color: var(--background-body);
+a:hover {
+  text-decoration: underline;
 }
