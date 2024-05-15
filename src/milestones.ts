@@ -145,7 +145,6 @@ export const computeMilestones = (startDate: SafeDate, earliest?: SafeDate, late
   }
 
   const mapped: Milestone[] = dayCounts.slice(0, limit).map(([label, days]) => ({formattedLabel: formatLabel(label, days), date: startDate.addDays(days)}));
-  console.log(mapped);
   return mapped;
 };
 

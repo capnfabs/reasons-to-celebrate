@@ -56,3 +56,8 @@ export type Tab = {
   header: ChildDom,
   body: ChildDom,
 }
+
+export const LoadingSpinner = (): Node => {
+  // from https://loading.io/css/
+  return div({class: libStyles.ldsEllipsis}, div(), div(), div(), div(),)
+}

@@ -1,5 +1,5 @@
 import { van } from "./ui/van";
-import { Columns, Table, devOnlyStorage } from "./ui/lib";
+import { Columns, LoadingSpinner, Table, devOnlyStorage } from "./ui/lib";
 
 import { loadGoogleApis } from "./googleNonsenseWrapper";
 import { parseVcards } from "./contacts/vcardContacts";
@@ -12,13 +12,13 @@ const { a, b, button, div, h2, h3, input, p, span } = van.tags;
 
 
 import styles from "./styles.module.css"
-import { ChildDom } from "vanjs-core";
+import { ChildDom, ValidChildDomValue } from "vanjs-core";
 import { SafeDate } from "./datemath";
 
 const expired = (elem: ChildDom): ChildDom => {
   return span({class: styles.strikethrough}, elem);
 }
-const greyed = (elem: ChildDom): ChildDom => {
+const greyed = (elem: ChildDom): ValidChildDomValue => {
   return span({class: styles.greyed}, elem);
 }
 
@@ -149,7 +149,6 @@ function askUserForFile(): Promise<string> {
 
 async function loadContactsFromVcardFile(): Promise<UserSuppliedContact[]> {
   const fileContent = await askUserForFile();
-  console.log('loaded file content');
   return parseVcards(fileContent);
 };
 
@@ -180,16 +179,26 @@ const TitleWithSmolLinkOnRight = (kwargs: {title: string, smolLink: ChildDom}): 
 
 const LargerApp = () => {
   const googleLoaded = van.state(false);
+  const loading = van.state(false);
   const rawContacts = van.state<UserSuppliedContact[] | null>(null);
   const allMilestones = van.state<[ValidContact, Milestone][] | null>(null);
   const authedGoogleClient = loadGoogleApis(document).then((a) => { googleLoaded.val = true; return a });
   const debugView = van.state(false);
 
   const loadContacts = async (loader: Promise<UserSuppliedContact[]>) => {
-    const userContacts = await loader;
+    loading.val = true;
+    let userContacts;
+    try {
+      userContacts = await loader;
+    } catch {
+      // TODO handle exception?
+      loading.val = false;
+      return;
+    }
     rawContacts.val = userContacts;
     const validContacts = selectValidContacts(userContacts);
     allMilestones.val = computeMilestonesForLotsOfPeople(validContacts, (c) => c.birthday);
+    loading.val = false;
   };
 
   return div(
@@ -214,9 +223,11 @@ const LargerApp = () => {
         }, "Import from vcf / vcard file"),
     ),
     () => {
+      if (loading.val) {
+        return Columns(LoadingSpinner());
+      }
       // should both be set at the same time
       if (!(allMilestones.val && rawContacts.val)) {
-        console.log('early exit');
         return '';
       }
 
