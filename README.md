@@ -9,9 +9,6 @@ npm run dev # | build | preview | test
 - Handle super old or super young birthdays in small app (just say something cute about "you're clearly a time-traveler, or you've made a typo")
 - Polish loading / async etc
 - Include instructions for importing (make a video with sesame street characters)
-- Make it look nice (CSS)
-    - Add thing that says "that's today! / tomorrow! / this week!",
-    - grey / cross-out old ones
 - Maybe delete VanUI
 
 ## Out of scope:
