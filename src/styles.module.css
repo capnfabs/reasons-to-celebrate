@@ -11,6 +11,7 @@
     padding: 0.5em;
 }
 
+/** appropriated from Github I think */
 .good-button {
   background-color: #FAFBFC;
   border: 1px solid rgba(27, 31, 35, 0.15);
@@ -50,9 +51,11 @@
   outline: 1px transparent;
 }
 
-.good-tab-button-row {
-
+.strikethrough {
+  text-decoration: line-through;
+  color: #808080;
 }
 
-.good-tab-button {
+.greyed {
+  color: #808080;
 }

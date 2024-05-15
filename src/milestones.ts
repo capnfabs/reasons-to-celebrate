@@ -1,3 +1,5 @@
+import { SafeDate } from "./datemath";
+
 export const MILLIS_TO_DAYS = 1 / (1000 * 60 * 60 * 24);
 
 const NUMBER_FORMAT = new Intl.NumberFormat();
@@ -41,42 +43,34 @@ const LIST_OF_SIGNIFICANT_DAYCOUNTS = (() => {
 
 export type Milestone = {
   formattedLabel: string,
-  date: Date,
+  date: SafeDate,
 }
 
-export const addDays = (date: Date, days: number): Date => {
-  const d = new Date(date.valueOf());
-  d.setDate(date.getDate() + days);
-  return d;
+function stripLeadingZeroes(val: string): string {
+  return val.replace(/^0+/, '') || '0';
 }
-
-export const today = (): Date => {
-  const d = new Date();
-  const d2 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  return d2;
-}
-
 
 // returns a number that's loosely a representation of the user's birthday.
 // We try to target a 5-digit number because most people reading this will be
 // between 10k-30k days old.
 // This also works with locales, i.e. en-US gets month-first.
-const buildBirthdayNumber = (date: Date, locale?: string): [string, number] => {
-  const format = new Intl.DateTimeFormat(locale).formatToParts(date);
+export const buildBirthdayNumber = (date: SafeDate, locale?: string): [string, number] => {
+  const format = new Intl.DateTimeFormat(locale, {timeZone: 'UTC'}).formatToParts(date.convert());
   // to generate the number, filter out slashes, dots etc.
   const numFormat = format.filter((x) => x.type !== "literal");
 
   // if the first number only has one digit, then zero-pad both the first and second numbers.
-  const shouldPadDayAndMonthFields = numFormat.map((x) => x.value)[0].length === 1;
+  const shouldPadDayAndMonthFields = numFormat.map((x) => stripLeadingZeroes(x.value))[0].length === 1;
 
   const runFormatter = (formatter: typeof format): string => formatter.map((component) => {
     switch (component.type) {
       case "day":
       case "month":
-        if (shouldPadDayAndMonthFields && component.value.length === 1) {
-          return "0" + component.value;
+        const componentVal = stripLeadingZeroes(component.value);
+        if (shouldPadDayAndMonthFields && componentVal.length === 1) {
+          return "0" + componentVal;
         } else {
-          return component.value;
+          return componentVal;
         }
       case "year":
         return component.value.substring(2);
@@ -127,16 +121,16 @@ function findRange(array: number[], startValue: number, endValue?: number): [num
   return [startIdx, endIdx];
 }
 
-export const computeMilestones = (startDate: Date, earliest?: Date, latest?: Date, limit?: number): Milestone[] => {
+export const computeMilestones = (startDate: SafeDate, earliest?: SafeDate, latest?: SafeDate, limit?: number): Milestone[] => {
   if (!startDate) {
     return [];
   }
-  earliest = earliest || addDays(today(), -60);
+  earliest = earliest || SafeDate.today().addDays(-60);
 
   // filter out days that are 'too historical'
   // list is presorted so doing this now is a good perf optimisation
-  const earliestDayCutoff = (earliest.getTime() - startDate.getTime()) * MILLIS_TO_DAYS;
-  const latestDayCutoff = (latest && (latest.getTime() - startDate.getTime()) * MILLIS_TO_DAYS);
+  const earliestDayCutoff = SafeDate.daysBetween(earliest, startDate);
+  const latestDayCutoff = latest && SafeDate.daysBetween(latest, startDate);
 
   const [startIdx, endIdxExclusive] = findRange(LIST_OF_SIGNIFICANT_DAYCOUNTS.map(([,num]) => num), earliestDayCutoff, latestDayCutoff);
 
@@ -150,21 +144,22 @@ export const computeMilestones = (startDate: Date, earliest?: Date, latest?: Dat
     dayCounts.sort((a, b) => a[1] - b[1]);
   }
 
-  const mapped: Milestone[] = dayCounts.slice(0, limit).map(([label, days]) => ({formattedLabel: formatLabel(label, days), date: addDays(startDate, days)}));
+  const mapped: Milestone[] = dayCounts.slice(0, limit).map(([label, days]) => ({formattedLabel: formatLabel(label, days), date: startDate.addDays(days)}));
+  console.log(mapped);
   return mapped;
 };
 
-export function computeMilestonesForLotsOfPeople<T>(people: T[], getBirthday: (person: T) => Date, earliest?: Date, latest?: Date): [T, Milestone][] {
+export function computeMilestonesForLotsOfPeople<T>(people: T[], getBirthday: (person: T) => SafeDate, earliest?: SafeDate, latest?: SafeDate): [T, Milestone][] {
   // can we compute max milestones based on the date range?
   // this has to be O(people*milestones)
-  earliest = earliest || addDays(today(), - 60);
-  latest = latest || addDays(today(), 3*365 + 1);
+  earliest = earliest || SafeDate.today().addDays(-60);
+  latest = latest || SafeDate.today().addDays(3*365 + 1);
 
   const result: [T, Milestone][] = people.flatMap((person) => {
     const birthday = getBirthday(person);
     const milestones = computeMilestones(birthday, earliest, latest);
     return milestones.map<[T, Milestone]>((m) => [person, m]);
   });
-  result.sort(([,a], [,b]) => a.date.getTime() - b.date.getTime());
+  result.sort(([,a], [,b]) => SafeDate.daysBetween(a.date, b.date));
   return result;
 }
