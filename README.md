@@ -6,8 +6,10 @@ npm run dev # | build | preview | test
 ```
 
 ## Things for a v1 (ordered)
-- Handle super old or super young birthdays in small app (just say something cute about "you're clearly a time-traveler, or you've made a typo")
 - Include instructions for importing (make a video with sesame street characters)
+- Deploy
+- Scrub credentials from git repo
+- Remove extra authorization access for localhost.
 
 ## Out of scope:
 - Edit imported data?

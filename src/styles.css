@@ -2,14 +2,6 @@
 
 /* Some stuff here borrowed from Water.css, see https://watercss.kognise.dev */
 
-:root {
-  --header-font-family: "Poetsen One", "Arial";
-  --header-font-weight: 400;
-  --body-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --background: #efefef;
-  --background-alt: #f7f7f7;
-}
-
 html,
 body {
   height: 100%;
@@ -17,7 +9,7 @@ body {
 
 body {
   margin: 0;
-  font-family: var(--body-font-family);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   background-color: lightpink;
   min-height: 100%;
   text-rendering: optimizeLegibility;
@@ -29,8 +21,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--header-font-family);
-  font-weight: var(--header-font-weight);
+  font-family: "Poetsen One", "Arial";
+  font-weight: 400;
 }
 
 hr {
