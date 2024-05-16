@@ -48,8 +48,8 @@ export class SafeDate {
     return a.day === b.day && a.month === b.month && a.year === b.year;
   }
 
-  public toLocaleDateString(): string {
-    return this.convert().toLocaleDateString(undefined, {
+  public toLocaleDateString(locale?: string): string {
+    return this.convert().toLocaleDateString(locale, {
       timeZone: 'UTC',
     });
   }

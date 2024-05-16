@@ -39,8 +39,8 @@ test('addDays across timezones', () => {
 test('String convert works across DST transitions', () => {
   // DST transitions
   const date = new SafeDate(2024, 3, 9).addDays(2);
-  expect(date.toLocaleDateString()).toBe("11/03/2024");
+  expect(date.toLocaleDateString("en-AU")).toBe("11/03/2024");
 
   const date2 = new SafeDate(2023, 10, 28).addDays(2);
-  expect(date2.toLocaleDateString()).toBe("30/10/2023");
+  expect(date2.toLocaleDateString("en-AU")).toBe("30/10/2023");
 });
