@@ -1,5 +1,5 @@
-const CLIENT_ID = "587480390208-mlck7cejl7sgmnnckacml59gfbusanql.apps.googleusercontent.com";
-const API_KEY = "AIzaSyA_3qfPUe-0FmaBRRpzCHQHjn1qtDxrxWQ";
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/people/v1/rest';
 // Authorization scopes required by the API; multiple scopes can be
 // included, separated by spaces.
