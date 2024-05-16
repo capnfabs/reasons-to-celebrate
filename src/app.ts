@@ -222,7 +222,7 @@ const LargerApp = () => {
 
   return div(
     h2("How about your friends?"),
-    p({ class: styles.disclaimer }, "(", a({ href: './how-to-import.html' }, "How to import"), " | ", a({ href: "./privacy.html" }, "All data stays in your browser"), ")"),
+    p({ class: styles.disclaimer }, "(", a({ href: '/how-to-import/' }, "How to import"), " | ", a({ href: "/privacy/" }, "All data stays in your browser"), ")"),
     Columns(
       // TODO make this error if we can't load Google
       button(

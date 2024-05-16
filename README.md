@@ -17,6 +17,12 @@ cp .env.local.template .env.local && $EDITOR .env.local
 npm run dev # | build | preview | test
 ```
 
+## Deploy
+```sh
+npm run build
+# now drag and drop the folder into Netlify lol
+```
+
 ## Things for a v1 (ordered)
 - Include instructions for importing (make a video with sesame street characters)
 - Deploy
