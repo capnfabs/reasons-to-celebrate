@@ -7,7 +7,6 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         privacy: resolve(__dirname, 'privacy/index.html'),
-        "how-to-import": resolve(__dirname, 'how-to-import/index.html'),
       },
     },
   },
