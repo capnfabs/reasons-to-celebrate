@@ -130,7 +130,7 @@ const UserSuppliedContactData = (contacts: UserSuppliedContact[]): Element => {
     return div(
       p({ class: styles.disclaimer }, `Your contacts' birthdays need to have a year to be useable in this app, and we automatically filter out contacts born before 1900.`),
       countContactsWithoutBirthday ? p({ class: styles.disclaimer }, `Skipping ${countContactsWithoutBirthday.toLocaleString()} contacts which don't have birthdays.`) : '',
-      Table({ head: ["Name", "Birthday", "Parsed"], data: contactsWithSomeBirthday.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)]) })
+      Table({ head: ["Name", "Birthday (free text)", "Parsed"], data: contactsWithSomeBirthday.map((c) => [c.name, c.birthdayRawText, dateWithPlaceholders(c.birthdayParsed)]) })
     );
   } else {
     return div("Couldn't find any contacts 🤔");
@@ -171,6 +171,10 @@ async function loadContactsFromVcardFile(): Promise<UserSuppliedContact[]> {
 
 const MergedMilestonesTable = (milestones: [ValidContact, Milestone][]) => {
   const currentDate = SafeDate.today();
+
+  if (milestones.length == 0) {
+    return div({class: styles.noValidContacts}, greyed("Couldn't find any contacts with complete birthdays 🤔"))
+  }
 
   return Table({
     head: ['Person', 'Occasion', 'Date'],

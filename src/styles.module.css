@@ -59,3 +59,8 @@
 .greyed {
   color: #808080;
 }
+
+.no-valid-contacts {
+  padding-top: 1em;
+  text-align: center;
+}
