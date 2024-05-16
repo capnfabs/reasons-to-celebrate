@@ -222,7 +222,7 @@ const LargerApp = () => {
 
   return div(
     h2("How about your friends?"),
-    p({ class: styles.disclaimer }, "(Export instructions: ", a({ href: 'https://support.apple.com/en-au/guide/iphone/iph075ddebf2/ios' }, "iOS"), ", ", a({ href: 'https://support.google.com/contacts/answer/7199294' }, "Android"), " | ", a({ href: "/privacy/" }, "All data stays in your browser"), ")"),
+    p({ class: styles.disclaimer }, "(", a({ href: "/privacy/" }, "All data stays in your browser"), " | ", "Export instructions: ", a({ href: 'https://support.apple.com/en-au/guide/iphone/iph075ddebf2/ios' }, "iOS"), ", ", a({ href: 'https://support.google.com/contacts/answer/7199294' }, "Android"), ")"),
     Columns(
       // TODO make this error if we can't load Google
       button(
