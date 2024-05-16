@@ -1,19 +1,17 @@
-import { van } from "./ui/van";
-import { Columns, LoadingSpinner, Table, devOnlyStorage } from "./ui/lib";
+import van, { ChildDom, ValidChildDomValue } from "vanjs-core";
 
-import { loadGoogleApis } from "./googleNonsenseWrapper";
-import { parseVcards } from "./contacts/vcardContacts";
 import { loadContactsFromGoogle } from "./contacts/googleContacts";
 import { CalendarDate, UserSuppliedContact } from "./contacts/types";
-import { Milestone, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
 import { ValidContact, selectValidContacts } from "./contacts/valid";
+import { parseVcards } from "./contacts/vcardContacts";
+import { SafeDate } from "./datemath";
+import { loadGoogleApis } from "./googleNonsenseWrapper";
+import { Milestone, computeMilestones, computeMilestonesForLotsOfPeople } from "./milestones";
+import { Columns, LoadingSpinner, Table, devOnlyStorage } from "./ui/lib";
+
+import styles from "./styles.module.css";
 
 const { a, b, button, div, h2, h3, input, p, span } = van.tags;
-
-
-import styles from "./styles.module.css"
-import { ChildDom, ValidChildDomValue } from "vanjs-core";
-import { SafeDate } from "./datemath";
 
 const expired = (elem: ChildDom): ChildDom => {
   return span({ class: styles.strikethrough }, elem);

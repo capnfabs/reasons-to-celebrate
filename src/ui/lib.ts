@@ -1,6 +1,4 @@
-import { ChildDom } from "vanjs-core";
-
-import {van} from "./van";
+import van, { ChildDom } from "vanjs-core";
 
 const { button, div, table, thead, tbody, tr, th, td } = van.tags;
 
