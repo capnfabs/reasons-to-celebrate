@@ -19,6 +19,7 @@
 
 .columns {
     display: flex;
+    flex-wrap: wrap;
 }
 
 .columns .col {
