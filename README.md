@@ -1,4 +1,4 @@
-we all need more reasons to celebrate.
+we all need more [reasons to celebrate](http://reasons-to-celebrate.fabi.jetzt).
 
 ## Setup
 
